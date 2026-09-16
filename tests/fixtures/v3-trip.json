@@ -1,0 +1,273 @@
+{
+  "version": 3,
+  "name": "تجربة ترحيل",
+  "money": 21030,
+  "debt": 8000,
+  "day": 1,
+  "time": 9,
+  "elapsed": 9,
+  "signed": true,
+  "inventoried": true,
+  "repaired": true,
+  "mission": 8,
+  "chapter": 1,
+  "completed": false,
+  "rep": 50,
+  "capacity": 160,
+  "cooling": false,
+  "officeLevel": 0,
+  "truckCount": 1,
+  "truckCondition": 96,
+  "staff": {
+    "driver": 0,
+    "worker": 0,
+    "rep": 0,
+    "accountant": 0
+  },
+  "auto": false,
+  "contracts": {
+    "bakery": false,
+    "dairy": false,
+    "clean": false
+  },
+  "purchases": {
+    "bakery": 900,
+    "dairy": 0,
+    "clean": 0
+  },
+  "stock": [],
+  "incoming": [],
+  "orders": [],
+  "trip": {
+    "orders": [
+      {
+        "id": 4,
+        "client": 0,
+        "pid": "bread",
+        "qty": 10,
+        "price": 132,
+        "accepted": true,
+        "discount": 0,
+        "payment": "cash",
+        "expires": 999999,
+        "first": true,
+        "deadline": 999999
+      }
+    ],
+    "cargo": [
+      {
+        "order": 4,
+        "pid": "bread",
+        "qty": 10,
+        "cost": 900,
+        "expires": 5
+      }
+    ],
+    "remaining": 32,
+    "total": 32,
+    "route": "safe",
+    "far": false
+  },
+  "cargo": [],
+  "carry": null,
+  "invoices": [
+    {
+      "id": 10,
+      "type": "purchase",
+      "pid": "bread",
+      "qty": 10,
+      "expected": 900,
+      "amount": 963,
+      "corrected": false,
+      "settled": false,
+      "day": 1
+    }
+  ],
+  "ledger": [
+    {
+      "id": 14,
+      "day": 1,
+      "text": "مرحلة جديدة: الفلوس لسه عند الحسابات",
+      "amount": 0
+    },
+    {
+      "id": 13,
+      "day": 1,
+      "text": "وقود ومصاريف خط التوزيع",
+      "amount": -70
+    },
+    {
+      "id": 12,
+      "day": 1,
+      "text": "مرحلة جديدة: رحلة إلى ماركت الأمانة",
+      "amount": 0
+    },
+    {
+      "id": 11,
+      "day": 1,
+      "text": "مرحلة جديدة: أول حمولة بإيدك",
+      "amount": 0
+    },
+    {
+      "id": 9,
+      "day": 1,
+      "text": "مرحلة جديدة: استلم وعدّ البضاعة",
+      "amount": 0
+    },
+    {
+      "id": 7,
+      "day": 1,
+      "text": "شراء 10 كرتونة خبز معبأ",
+      "amount": -900
+    },
+    {
+      "id": 6,
+      "day": 1,
+      "text": "مرحلة جديدة: بضاعة على قد الطلب",
+      "amount": 0
+    },
+    {
+      "id": 5,
+      "day": 1,
+      "text": "مرحلة جديدة: أول تليفون من عميل",
+      "amount": 0
+    },
+    {
+      "id": 3,
+      "day": 1,
+      "text": "صيانة العربية",
+      "amount": -3000
+    },
+    {
+      "id": 2,
+      "day": 1,
+      "text": "مرحلة جديدة: نرجّع العربية للطريق",
+      "amount": 0
+    },
+    {
+      "id": 1,
+      "day": 1,
+      "text": "مرحلة جديدة: الجرد قبل الشغل",
+      "amount": 0
+    }
+  ],
+  "clients": [
+    {
+      "id": 0,
+      "name": "ماركت الأمانة",
+      "area": "دمياط",
+      "trust": 55,
+      "credit": 8000,
+      "served": 0,
+      "outstanding": 0
+    },
+    {
+      "id": 1,
+      "name": "سوبرماركت التقوى",
+      "area": "دمياط",
+      "trust": 50,
+      "credit": 6500,
+      "served": 0,
+      "outstanding": 0
+    },
+    {
+      "id": 2,
+      "name": "أسواق المدينة",
+      "area": "دمياط",
+      "trust": 50,
+      "credit": 7000,
+      "served": 0,
+      "outstanding": 0
+    },
+    {
+      "id": 3,
+      "name": "هايبر الأمل",
+      "area": "الدقهلية",
+      "trust": 45,
+      "credit": 13000,
+      "served": 0,
+      "outstanding": 0
+    },
+    {
+      "id": 4,
+      "name": "أسواق مكة",
+      "area": "الدقهلية",
+      "trust": 45,
+      "credit": 12000,
+      "served": 0,
+      "outstanding": 0
+    },
+    {
+      "id": 5,
+      "name": "ميني ماركت البركة",
+      "area": "دمياط",
+      "trust": 50,
+      "credit": 6000,
+      "served": 0,
+      "outstanding": 0
+    }
+  ],
+  "regions": [
+    "دمياط"
+  ],
+  "served": [],
+  "revenue": 0,
+  "cogs": 0,
+  "expenses": 70,
+  "delivered": 0,
+  "seq": 15,
+  "orderTick": 0,
+  "event": null,
+  "nextEvent": 3,
+  "lastStatement": null,
+  "notices": [
+    {
+      "text": "العربية خرجت بـ1 طلب. أنت بتتابع رحلة التوصيل؛ استنى الرجوع.",
+      "day": 1
+    },
+    {
+      "text": "البضاعة اتحملت فعليًا في العربية.",
+      "day": 1
+    },
+    {
+      "text": "شايل 10 كرتونة خبز معبأ. اتجه للعربية وحمّل.",
+      "day": 1
+    },
+    {
+      "text": "استلمت 10 كرتونة خبز معبأ؛ موجودين على الرف.",
+      "day": 1
+    },
+    {
+      "text": "شحنة جديدة وصلت على بالته الاستلام.",
+      "day": 1
+    },
+    {
+      "text": "أمر الشراء اتبعت. العربية هتوصل على بالته الاستلام بعد ٨ ثواني لعب.",
+      "day": 1
+    },
+    {
+      "text": "تم تأكيد الطلب. جهّز البضاعة من المخزن.",
+      "day": 1
+    },
+    {
+      "text": "الموتور اشتغل. العربية جاهزة لأول رحلة.",
+      "day": 1
+    },
+    {
+      "text": "الجرد: مخزن فاضي بسعة ١٦٠ كرتونة، عربية عطلانة، و٨٬٠٠٠ ج.م التزامات قديمة.",
+      "day": 1
+    },
+    {
+      "text": "المكتب والمخزن والعربية بقوا تحت إدارتك. راجع المخزن الأول.",
+      "day": 1
+    }
+  ],
+  "settings": {
+    "sound": true,
+    "quality": "high"
+  },
+  "position": {
+    "x": -6,
+    "z": 4
+  }
+}
