@@ -65,7 +65,7 @@ const network=new AgencyNetwork(()=>sim,slots,localStore);
 const features=installFeatureUI({network,panels,getSim:()=>sim,btn,row,egp,esc,slots,open,toast,switchSlot(slot){save();const previous=slots.active;try{slots.select(slot);const raw=slots.load();const next=new Simulation(raw||undefined);sim=next;bind();saved=raw;world.lastVisual='';world.player.position.set(sim.s.position.x,0,sim.s.position.z);world.quality(sim.s.settings.quality);close();started=false;start(false);toast('فتحت خانة الحفظ '+slot);}catch(e){slots.select(previous);toast('الخانة غير صالحة؛ الحفظ الحالي لم يتغير.','bad')}}});
 const expansion=ExpansionUI({panels,getSim:()=>sim,btn,row,egp,esc,go,open});
 const guide=GuideUI({panels,getSim:()=>sim,btn,go,esc});
-registerPWA();
+registerPWA({canReload:()=>!panel&&!network.busy&&!world?.isGestureActive?.(),beforeReload(){if(started){save();if(saveError)return false;try{sessionStorage.setItem('saeed_update_resume',String(slots.active))}catch{}}return true},onUpdate:message=>toast(message)});
 
 
 const logistics=LogisticsUI({panels,getSim:()=>sim,btn,row,egp,esc,open});
@@ -120,5 +120,6 @@ document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g
  }refresh();if(refreshPanel&&panel)renderPanel();save();});
 installMobileUI(()=>world);
 try{world=new AgencyWorld({interact,blocked:()=>!started||paused||!!panel,target:()=>sim.mission.target,footstep:()=>sound('step')});world.quality(sim.s.settings.quality);$('#loading').hidden=true;world.setView('all');world.angle=.48;refresh();let last=performance.now();function frame(now){let dt=Math.min((now-last)/1000,.1);last=now;if(started&&!paused&&!['settings','import','reset','endDay','guide','cloud','editor','voice'].includes(panel)&&!document.hidden){sim.tick(dt);saveTick+=dt;if(saveTick>1){saveTick=0;refresh();if(['garage','cold'].includes(panel))panelDirty=true;save();}}if(panelDirty&&panel&&!['settings','import','reset','endDay','guide','cloud','editor','voice'].includes(panel))renderPanel(true);mapTick+=dt;if(mapTick>.12){mapTick=0;v4.updateMap();expansion.update();}world.update(dt,sim.s);requestAnimationFrame(frame)}requestAnimationFrame(frame);}catch(e){$('#loading').innerHTML='<strong>تعذر تشغيل الرسوم</strong><span>افتح اللعبة بمتصفح Chrome أو Edge مع تفعيل تسريع الرسوم.</span><small>'+esc(e.message)+'</small>';console.error(e);}
+try{const resume=sessionStorage.getItem('saeed_update_resume');sessionStorage.removeItem('saeed_update_resume');if(resume===String(slots.active)&&saved&&world)start(false)}catch{}
 window.addEventListener('beforeunload',save);document.addEventListener('visibilitychange',()=>{if(document.hidden){save();if(world)world.keys={};}});
 })();
