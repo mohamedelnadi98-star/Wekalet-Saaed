@@ -1,7 +1,7 @@
 from pathlib import Path
 import hashlib,json
 root=Path(__file__).resolve().parent.parent
-files=sorted(p for p in root.rglob('*') if p.is_file() and p.suffix in ['.html','.js','.css','.json','.png','.svg'] and not any(part in ['tests','server-data'] for part in p.relative_to(root).parts) and p.name not in ['service-worker.js','Play-Offline.html','package.json'])
+files=sorted(p for p in root.rglob('*') if p.is_file() and p.suffix in ['.html','.js','.css','.json','.png','.svg','.glb'] and not any(part in ['tests','server-data','node_modules'] for part in p.relative_to(root).parts) and p.name not in ['service-worker.js','Play-Offline.html','package.json'])
 version=hashlib.sha256(b''.join(p.read_bytes() for p in files)).hexdigest()[:12]
 assets=['./']+['./'+str(p.relative_to(root)) for p in files]
 (root/'service-worker.js').write_text("const CACHE='saeed-"+version+"',ASSETS="+json.dumps(assets)+""";

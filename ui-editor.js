@@ -1,0 +1,19 @@
+import {DEFAULT_RACKS,validRacks} from './simulation/layout.js';
+export function EditorUI({panels,getSim,getWorld,btn,open,toast}){
+ let draft=null,selected=0,drag=null;
+ const prev=panels.layout;panels.layout=()=>{const v=prev();v[2]+=btn('محرر المخزن بالسحب','editorOpen');return v};
+ function draw(){const p=draft||DEFAULT_RACKS;return '<svg id="rack-editor" viewBox="0 0 650 470" style="width:100%;touch-action:none;background:#173d40" role="img" aria-label="اسحب الرفوف داخل المخزن"><defs><pattern id="grid" width="25" height="25" patternUnits="userSpaceOnUse"><path d="M25 0H0V25" fill="none" stroke="#456568"/></pattern></defs><rect width="650" height="470" fill="url(#grid)"/><text x="325" y="30" text-anchor="middle" fill="white">حائط المخزن — ممر الخروج أسفل المخطط</text>'+p.map((r,i)=>'<g data-rack="'+i+'" transform="translate('+((r.x+2)*50)+' '+((r.z+8)*50)+')"><rect x="-75" y="-37.5" width="150" height="75" rx="5" fill="'+(i===selected?'#dcad61':'#65a39c')+'" stroke="white"/><text text-anchor="middle" y="6" fill="#102e31">رف '+(i+1)+'</text></g>').join('')+'</svg>'}
+ panels.editor=()=>['تخطيط حر داخل المخزن','اسحب الرف وراجع الممرات','<p>اسحب الرفوف الأربعة. حركة العامل وزمن التجهيز والبضاعة تتبع أماكنها. التعديلات لا تسري قبل الحفظ؛ نرفض التداخل وسد الممرات. لتعديل أدق اختر الرف ثم استخدم الأسهم.</p>'+draw()+'<p id="rack-status"></p>'+[0,1,2,3].map(i=>btn('رف '+(i+1),'editorSelect','data-rack="'+i+'"',selected===i)).join('')+btn('←','editorMove','data-x="-.5" data-z="0"')+btn('→','editorMove','data-x=".5" data-z="0"')+btn('↑','editorMove','data-x="0" data-z="-.5"')+btn('↓','editorMove','data-x="0" data-z=".5"')+btn('تطبيق التخطيط','editorApply')+btn('استعادة التخطيط الأصلي','editorReset')];
+ function repaint(){const el=document.getElementById('rack-editor');if(el)el.outerHTML=draw();const status=document.getElementById('rack-status');if(status)status.textContent=validRacks(draft,getSim().s.capacity)?'المواضع سليمة؛ اضغط تطبيق لفحص مسارات المكان.':'تداخل أو ممر مغلق؛ غيّر أماكن الرفوف.'}
+ document.addEventListener('pointerdown',e=>{const r=e.target.closest?.('[data-rack]'),svg=e.target.closest?.('#rack-editor');if(!r||!svg)return;selected=Number(r.dataset.rack);drag={rect:svg.getBoundingClientRect()};e.preventDefault()});
+ document.addEventListener('pointermove',e=>{if(!drag||!draft)return;const r=drag.rect,x=(e.clientX-r.left)/r.width*650,z=(e.clientY-r.top)/r.height*470;draft[selected]={x:Math.max(.5,Math.min(9,Math.round((x/50-2)*2)/2)),z:Math.max(-6.6,Math.min(0,Math.round((z/50-8)*2)/2))};repaint()});
+ document.addEventListener('pointerup',()=>drag=null);document.addEventListener('pointercancel',()=>drag=null);
+ return {handle(b){const a=b.dataset.action,s=getSim().s;if(!a.startsWith('editor'))return false;if(a==='editorOpen'){draft=structuredClone(s.warehousePlan.customRacks||DEFAULT_RACKS);open('editor')}if(a==='editorSelect')selected=Number(b.dataset.rack);if(a==='editorReset')draft=structuredClone(DEFAULT_RACKS);if(a==='editorMove'){draft[selected].x+=Number(b.dataset.x);draft[selected].z+=Number(b.dataset.z)}if(a==='editorApply'){
+  if(s.pickingJob||s.workerJob||s.carry){toast('انتظر انتهاء التجهيز والتحميل قبل تغيير المخزن.');return true}
+  if(!validRacks(draft,s.capacity)){toast('فيه رفوف متداخلة أو ممر مقفول.','bad');return true}
+  const w=getWorld(),old=s.warehousePlan.customRacks;s.warehousePlan.customRacks=structuredClone(draft);w.state=s;
+  const destinations=w.interactables.map(o=>o.approach).concat(draft.map(r=>({x:r.x,z:r.z+1.8})));
+  if(w.blockedAt(w.player.position.x,w.player.position.z)||destinations.some(p=>Math.hypot(p.x-w.player.position.x,p.z-w.player.position.z)>.8&&!w.findPath(p.x,p.z).length)){s.warehousePlan.customRacks=old;toast('التخطيط يقفل مسار عمل؛ سيب ممر أوسع.','bad');return true}
+  w.path=[];w.pending=null;w.lastVisual='';getSim().change();toast('اتحركت الرفوف والبضاعة ومسارات العامل مع التخطيط الجديد.')
+ }return true}};
+}

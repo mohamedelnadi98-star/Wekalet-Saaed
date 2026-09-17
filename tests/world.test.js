@@ -20,3 +20,21 @@ const palms=[];world.scene.traverse(o=>{if(o.userData.groundedPalm)palms.push(o)
 sim.s.trip=null;sim.s.warehousePlan={layout:'compact',slots:{bakery:3,dairy:2,pantry:1,frozen:0},staging:2,secondGate:true,returnsZone:true};sim.s.pickingJob={batch:{pid:'bread',qty:10,order:42},vehicle:1,elapsed:5,duration:10,from:{x:1,z:.3},to:{x:1.4,z:5.3}};world.update(.016,sim.s);assert(world.workerPath.length>1);for(const point of world.workerPath)assert(!world.blockedAt(point.x,point.z),'Worker crossed an obstacle');
 world.setView('city');assert.equal(world.view,'city');assert.equal(world.zoomTarget,95);
 console.log('PASS: bright midnight, grounded palms, six customer buildings and collision-safe worker route');
+
+// Free layout must move physical stock and preserve navigation and save compatibility.
+sim.s.trip=null;sim.s.warehousePlan.customRacks=[{x:.5,z:-6.6},{x:4.5,z:-6.6},{x:8.5,z:-6.6},{x:.5,z:-1}];
+world.sync(sim.s);assert.equal(world.rackGroup.visible,false);assert(world.blockedAt(.5,-6.6));assert(!world.blockedAt(9.9,-1));
+const layoutSave=new Agency.Simulation().s;layoutSave.warehousePlan.customRacks=sim.s.warehousePlan.customRacks;const loaded=Agency.Simulation.validate(layoutSave);assert.deepEqual(loaded.warehousePlan.customRacks,sim.s.warehousePlan.customRacks);
+for(const p of sim.s.warehousePlan.customRacks){world.player.position.set(-6,0,4);const route=world.findPath(p.x,p.z+1.8);assert(route.length);for(const node of route)assert(!world.blockedAt(node.x,node.z))}
+const invalid=structuredClone(layoutSave);invalid.warehousePlan.customRacks[1]={...invalid.warehousePlan.customRacks[0]};assert.throws(()=>Agency.Simulation.validate(invalid));
+console.log('PASS: custom rack geometry, collision, worker access and saved layout validation');
+
+// v8 facilities must appear only when purchased, retain rear-loading access and animate real stops.
+const evolved=new Agency.Simulation();evolved.s.development.owned={frontage:true,jack:true,paving:true,wash:true,uniforms:true,forklift:true,dispatch:true,landmark:true};evolved.s.development.stage=4;evolved.s.development.equipment='forklift';evolved.s.staff.worker=1;world.update(.016,evolved.s);assert(world.equipment.forklift);assert(world.detailGroup.children.length>10);assert(world.cityBatchStats.after<world.cityBatchStats.before/5);
+for(const home of [-10,-3,4]){world.player.position.set(-6,0,4);const path=world.findPath(home,15.9);assert(path.length);for(const point of path)assert(!world.blockedAt(point.x,point.z));}
+const delivery={id:42,client:4,pid:'bread',qty:10,price:132,discount:0,payment:'cash',accepted:true,expires:99999,deadline:99999};evolved.s.trip=evolved.buildTrip([delivery],[{order:42,pid:'bread',qty:10,cost:900,expires:8}]);evolved.s.trip.vehicleId=1;
+world.update(.016,evolved.s);assert(world.cityTrucks.get(1).userData.entering.visible);assert(!world.cityTrucks.get(1).userData.driver.visible);
+evolved.s.trip.legIndex=evolved.s.trip.legs.findIndex(l=>l.kind==='unload');const leg=evolved.s.trip.legs[evolved.s.trip.legIndex];evolved.s.trip.legElapsed=leg.duration*.6;world.update(.2,evolved.s);assert(world.shops[4].userData.door.rotation.y<0);assert(world.shops[4].userData.customer.userData.deliveryBox.visible);assert(world.cityTrucks.get(1).userData.driver.visible);
+evolved.s.trip=null;world.update(.1,evolved.s);assert(!world.shops[4].userData.customer.userData.deliveryBox.visible);assert(!world.truck.userData.driver.visible);assert(!world.cityTrucks.size);
+const rearSave=new Agency.Simulation().s;rearSave.position={x:-10,z:15.9};assert.doesNotThrow(()=>Agency.Simulation.validate(rearSave));
+console.log('PASS: v8 upgrades, static batching, rear loading access, boarding and customer delivery animations');

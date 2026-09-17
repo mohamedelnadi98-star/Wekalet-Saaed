@@ -1,3 +1,4 @@
+import {validRacks,rackApproach} from './layout.js';
 // Additive systems. The selected vehicle retains the v4 trip/cargo fields.
 export const LAYOUTS={
  classic:{name:'التوزيع الأصلي',racks:[{x:1,z:-6.6},{x:5,z:-6.6},{x:9,z:-6.6}],factor:1},
@@ -92,10 +93,11 @@ wrap('resolveTrip',function(old,choice){const t=this.s.trip,e=this.s.tripEvent,c
  if(r.phase==='return'){s.repRoutes=s.repRoutes.filter(x=>x!==r);this.notice('المندوب '+(r.index+1)+' رجع من '+r.visits+' زيارات.');this.change();continue}
  if(r.phase==='drive'){r.phase='visit';r.duration=6;continue}
  const id=r.clients[r.stop],care=s.customerCare[id];let result='';
- if(r.task==='collect'){const v=s.invoices.find(v=>v.client===id&&v.type==='sale'&&!v.settled&&v.due<=s.day);if(v){const amount=MONEY((v.amount-(v.paid||0))*.5);this.collect(v.id,amount);result='تحصيل '+amount+' ج'}else result='لا توجد مستحقات حالية'}
+ if(r.task==='collect'){const v=s.invoices.find(v=>v.client===id&&v.type==='sale'&&!v.settled&&v.due<=s.day&&(!this.repCanCollect||this.repCanCollect(r.index,v.id)));if(v){const amount=MONEY((v.amount-(v.paid||0))*.5);(this.collectForRep?this.collectForRep(r.index,v.id,amount):this.collect(v.id,amount));result='تحصيل '+amount+' ج'}else result='لا توجد مستحقات حالية'}
  else if(r.task==='recover'){care.loyalty=Math.min(100,care.loyalty+12);care.lostUntil=0;result='استعادة التعامل وتحسين الولاء'}
  else if(care.lostUntil>s.day)result='رفض: العميل مع المنافس؛ يحتاج زيارة استعادة';
- else{const seq=s.seq;this.generateOrder();const o=s.orders.find(o=>o.id>=seq);if(o){o.client=id;o.repAssigned=r.index+1;result='طلب جديد '+o.qty+' كرتونة'}else result='لا يوجد طلب مناسب الآن'}
+ else if(this.visitRepCustody?.(r.index,id))result='بيع من عهدة المندوب وتسجيل النقدي والآجل';
+ else{const seq=s.seq;this.generateOrder();const o=s.orders.find(o=>o.id>=seq);if(o){for(const line of s.orders.filter(x=>x.id>=seq)){line.client=id;line.repAssigned=r.index+1;}if(this.territories&&!this.territories(P[o.pid].company).includes(s.clients[id].area)){s.orders=s.orders.filter(x=>x.id<seq);result='المنطقة تحتاج تصريح الشركة';}else result='طلب جديد '+o.qty+' كرتونة'}else result='لا يوجد طلب مناسب الآن'}
  s.repReports.unshift({day:s.day,index:r.index,client:id,result});s.repReports=s.repReports.slice(0,80);r.visits++;r.from={...MAP.clients[id]};r.stop++;
  if(r.stop>=r.clients.length){r.phase='return';r.to={...MAP.depot};r.duration=18}else{r.phase='drive';r.to={...MAP.clients[r.clients[r.stop]]};r.duration=18}this.change();
  }};
@@ -111,7 +113,7 @@ wrap('resolveTrip',function(old,choice){const t=this.s.trip,e=this.s.tripEvent,c
  };
  wrap('pack',function(old,id){if(this.otherLoads().some(b=>b.order===id))return this.fail('الطلب محجوز على عربية أخرى؛ اختارها أو فرغ حمولتها أولًا.');if(this.s.workerJob)return this.fail('العامل بينقل شحنة الاستلام للرف.');if(this.s.pickingJob)return this.fail('العامل بيجهّز الطلب الحالي.');
  if(!this.s.staff.worker)return old.call(this,id);
- const r=old.call(this,id);if(r){const b=this.s.carry;this.s.carry=null;const slot=this.s.warehousePlan.slots[P[b.pid].company],from=[{x:1,z:-4.8},{x:5,z:-4.8},{x:9,z:-4.8},{x:1,z:.3}][slot];
+ const r=old.call(this,id);if(r){const b=this.s.carry;this.s.carry=null;const slot=this.s.warehousePlan.slots[P[b.pid].company],from=rackApproach(this.s,slot);
  const duration=Math.max(2,(6+Math.hypot(from.x-7.4,from.z+3.3))*LAYOUTS[this.s.warehousePlan.layout].factor/(1+this.s.warehousePlan.staging*.3));
  this.s.pickingJob={batch:b,vehicle:this.s.selectedVehicle,elapsed:0,duration,from,to:{x:1.4,z:5.3}};this.notice('العامل بدأ تجهيز الطلب؛ تقدر تتابعه داخل المخزن.');this.change()}return r;
  });
@@ -121,7 +123,7 @@ wrap('resolveTrip',function(old,choice){const t=this.s.trip,e=this.s.tripEvent,c
  wrap('arrive',function(old){const before=new Set(this.s.stock);const result=old.call(this);if(this.s.warehousePlan.returnsZone){const returned=this.s.stock.filter(b=>!before.has(b));for(const b of returned){b.id=b.id||this.s.seq++;this.s.returnQuarantine.push(b)}this.s.stock=this.s.stock.filter(b=>before.has(b));if(returned.length){this.notice('المرتجع في منطقة الفحص؛ راجعه قبل إتاحته للبيع.');this.change()}}return result});
  proto.inspectReturn=function(id){const s=this.s,index=s.returnQuarantine.findIndex(b=>b.id===Number(id));if(index<0)return false;const b=s.returnQuarantine.splice(index,1)[0];if(b.expires<=s.day){s.expenses+=b.qty*b.unit;this.notice('الدفعة انتهت صلاحيتها واتسجلت تالفًا.','bad')}else{s.stock.push(b);this.notice('فحص الصلاحية اكتمل والدفعة متاحة للبيع.')}this.change();return true};
  const receiveNow=proto.receive;
- proto.receive=function(id){const s=this.s;if(!s.staff.worker)return receiveNow.call(this,id);if(s.workerJob||s.pickingJob)return false;const b=s.incoming.find(b=>b.id===Number(id)&&b.ready);if(!b)return false;const slot=s.warehousePlan.slots[P[b.pid].company],to=[{x:1,z:-4.8},{x:5,z:-4.8},{x:9,z:-4.8},{x:1,z:.3}][slot];
+ proto.receive=function(id){const s=this.s;if(!s.staff.worker)return receiveNow.call(this,id);if(s.workerJob||s.pickingJob)return false;const b=s.incoming.find(b=>b.id===Number(id)&&b.ready);if(!b)return false;const slot=s.warehousePlan.slots[P[b.pid].company],to=rackApproach(s,slot);
  s.workerJob={id:b.id,elapsed:0,duration:8,batch:{pid:b.pid,qty:b.qty,order:'receive'+b.id},vehicle:0,from:{x:9,z:4.3},to};this.notice('العامل بينقل الشحنة من البالته لمنطقة الشركة.');this.change();return true};
  proto.story=function(key,text){if(this.s.storyLog.some(x=>x.key===key))return;this.s.storyLog.push({key,text,day:this.s.day});this.notice(text)};
  proto.storyDecision=function(key,choice){
@@ -174,9 +176,9 @@ wrap('resolveTrip',function(old,choice){const t=this.s.trip,e=this.s.tripEvent,c
  if(!Array.isArray(s.customerCare)||s.customerCare.length!==6)bad();s.customerCare.forEach((c,i)=>{c.shortages=c.shortages||0;if(!n(c.shortages)||!['grocery','super','chain'].includes(c.type)||!n(c.loyalty,0,100)||!n(c.creditLimit,0,30000)||!n(c.late)||!n(c.lostUntil)||!n(c.remindedDay)||!n(c.visitHour,0,23))bad();s.clients[i].credit=c.creditLimit});
  if(!Array.isArray(s.collectionReceipts)||s.collectionReceipts.length>300||s.collectionReceipts.some(r=>!n(r.id,1)||!n(r.amount,.01)||!n(r.day,1)||!Number.isInteger(r.client)||r.client<0||r.client>5))bad();
  for(const v of s.invoices)if(v.paid!==undefined&&!n(v.paid,0,v.amount))bad();
- const w=s.warehousePlan;if(!w||!LAYOUTS[w.layout]||!w.slots||Object.keys(w.slots).length!==4||Object.keys(C).some(cid=>!Number.isInteger(w.slots[cid])||!n(w.slots[cid],0,3))||new Set(Object.values(w.slots)).size!==4||!n(w.staging,0,2)||typeof w.secondGate!=='boolean'||typeof w.returnsZone!=='boolean'||typeof s.branch!=='boolean')bad();
- if(s.workerJob){const j=s.workerJob;if(!s.incoming.some(b=>b.id===j.id&&b.ready)||!n(j.elapsed)||!n(j.duration,1,100)||!j.batch||!P[j.batch.pid])bad();for(const p of [j.from,j.to])if(!p||!n(p.x,-14,14)||!n(p.z,-8,13))bad()}
- if(s.pickingJob){const j=s.pickingJob;if(!n(j.elapsed)||!n(j.duration,.1,100)||!s.vehicles.some(v=>v.id===j.vehicle)||s.carry)bad();baseValidate({...s,carry:j.batch});for(const p of [j.from,j.to])if(!p||!n(p.x,-14,14)||!n(p.z,-8,13))bad()}
+ const w=s.warehousePlan;if(w?.customRacks&&!validRacks(w.customRacks,s.capacity))bad();if(!w||!LAYOUTS[w.layout]||!w.slots||Object.keys(w.slots).length!==4||Object.keys(C).some(cid=>!Number.isInteger(w.slots[cid])||!n(w.slots[cid],0,3))||new Set(Object.values(w.slots)).size!==4||!n(w.staging,0,2)||typeof w.secondGate!=='boolean'||typeof w.returnsZone!=='boolean'||typeof s.branch!=='boolean')bad();
+ if(s.workerJob){const j=s.workerJob;if(!s.incoming.some(b=>b.id===j.id&&b.ready)||!n(j.elapsed)||!n(j.duration,1,100)||!j.batch||!P[j.batch.pid])bad();for(const p of [j.from,j.to])if(!p||!n(p.x,-14,14)||!n(p.z,-8,16.3))bad()}
+ if(s.pickingJob){const j=s.pickingJob;if(!n(j.elapsed)||!n(j.duration,.1,100)||!s.vehicles.some(v=>v.id===j.vehicle)||s.carry)bad();baseValidate({...s,carry:j.batch});for(const p of [j.from,j.to])if(!p||!n(p.x,-14,14)||!n(p.z,-8,16.3))bad()}
  if(!Array.isArray(s.repRoutes)||s.repRoutes.length>3||new Set(s.repRoutes.map(r=>r.index)).size!==s.repRoutes.length)bad();
  for(const r of s.repRoutes){if(!Number.isInteger(r.index)||!n(r.index,0,s.staff.rep-1)||!['sales','collect','recover'].includes(r.task)||!['drive','visit','return'].includes(r.phase)||!n(r.elapsed)||!n(r.duration,1,100)||!Array.isArray(r.clients)||r.clients.length>6||r.clients.some(i=>!Number.isInteger(i)||i<0||i>5)||!Number.isInteger(r.stop)||!n(r.stop,0,r.clients.length)||!n(r.visits))bad();for(const p of [r.from,r.to])if(!p||!n(p.x,0,900)||!n(p.y,0,520))bad()}
  if(!Array.isArray(s.repReports)||s.repReports.length>80||s.repReports.some(r=>typeof r.result!=='string'||r.result.length>200||!n(r.index,0,2)||!n(r.client,0,5)||!n(r.day,1)))bad();

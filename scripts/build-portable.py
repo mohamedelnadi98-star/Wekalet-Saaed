@@ -14,7 +14,8 @@ def collect(file):
   collect(dep)
 collect('game.js')
 assets={k:'data:image/png;base64,'+base64.b64encode((root/'assets'/f'{k}.png').read_bytes()).decode() for k in ['wood','concrete']}
-boot="window.SAEED_ASSETS="+json.dumps(assets)+";\nconst sources="+json.dumps(sources,ensure_ascii=False)+",urls={};\n"+r"""
+models={} # v7 uses locally constructed adult meshes; no old cartoon assets loaded
+boot='window.SAEED_MODELS='+json.dumps(models)+';\n'+"window.SAEED_ASSETS="+json.dumps(assets)+";\nconst sources="+json.dumps(sources,ensure_ascii=False)+",urls={};\n"+r"""
 function resolve(file,relative){const parts=file.split('/');parts.pop();for(const p of relative.split('/')){if(p==='..')parts.pop();else if(p!=='.')parts.push(p)}return parts.join('/')}
 function moduleURL(file){if(urls[file])return urls[file];const source=sources[file].replace(/from\s*(['"])(\.[^'"]+)\1/g,(_,q,p)=>'from '+q+moduleURL(resolve(file,p))+q);return urls[file]=URL.createObjectURL(new Blob([source],{type:'text/javascript'}))}
 import(moduleURL('game.js')).catch(e=>{const el=document.getElementById('loading');el.textContent='تعذر التشغيل: '+e.message;console.error(e)});
