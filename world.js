@@ -1,3 +1,4 @@
+import {narrativeWorld} from './world/story.js';
 import {detail} from './world/detail.js';
 import {environment} from './world/environment.js';
 import {BAY_X,BAY_Z,yardPosition} from './world/fleet-path.js';
@@ -45,7 +46,7 @@ update(dt,s){this.elapsed+=dt;this.sync(s);const blocked=this.cb.blocked();let m
  this.near=null;let best=2.25;for(const o of this.interactables){const d=Math.hypot(o.approach.x-this.player.position.x,o.approach.z-this.player.position.z);if(d<best){best=d;this.near=o;}const p=o.pos.clone().project(this.camera);const visible=this.active&&!blocked&&(d<5||['desk','shelf','truck','phone'].includes(o.id)&&innerWidth>=700||o.id===Agency.MISSIONS[s.mission]?.target)&&p.z<1&&p.x>-1.05&&p.x<1.05&&p.y>-1&&p.y<1;o.el.hidden=!visible;o.el.style.left=(p.x*.5+.5)*innerWidth+'px';o.el.style.top=(-p.y*.5+.5)*innerHeight+'px';o.el.classList.toggle('target',o.id===Agency.MISSIONS[s.mission]?.target);o.el.classList.toggle('near',this.near===o);if(o.id==='truck')o.el.hidden=!visible||!!s.trip;if(o.id==='dialogue'){o.el.hidden=!visible||s.staff.driver<=[s.trip,...s.fleetTrips].filter(Boolean).length;if(this.near===o&&(s.staff.driver<=[s.trip,...s.fleetTrips].filter(Boolean).length))this.near=null;}}
  const prompt=document.getElementById('interaction');prompt.hidden=!this.active||blocked||!this.near;if(this.near)prompt.querySelector('span').textContent=s.carry&&this.near.id==='truck'?'تحميل الكراتين في العربية':this.near.label;
  const room=this.player.position.z>2?'ساحة التحميل':this.player.position.x<-3?'مكتب وكالة سعيد':'المخزن';if(room!==this.room){this.room=room;document.querySelector('#location b').textContent=room;document.querySelector('#location span').textContent='وكالة سعيد / دمياط'}
- this.updateEffects(dt,s);this.updateCity(dt,s);this.updateWarehouseWork(dt,s);this.updateModels(dt,s);this.updateEnvironment(dt,s);this.updateDetail(dt,s);this.renderScene();
+ this.updateEffects(dt,s);this.updateCity(dt,s);this.updateWarehouseWork(dt,s);this.updateModels(dt,s);this.updateEnvironment(dt,s);this.updateDetail(dt,s);this.updateStoryShot(dt,s);this.renderScene();
  }
 }
-Object.assign(AgencyWorld.prototype,materials,scene,warehouse,actors,picking,pathfinding,effects,city,models,environment,detail);
+Object.assign(AgencyWorld.prototype,materials,scene,warehouse,actors,picking,pathfinding,effects,city,models,environment,detail,narrativeWorld);

@@ -1,3 +1,4 @@
+import {installStory,storyDefaults} from './simulation/story.js';
 import {installDevelopment,developmentDefaults} from './simulation/development.js';
 import {installLogistics,logisticsDefaults} from './simulation/logistics.js';
 import {installExpansion,expansionDefaults} from './simulation/expansion.js';
@@ -57,7 +58,7 @@ const MISSIONS=[
  {title:'دخول سوق المجمدات',hint:'٦٠ طلبية و٦ دورات ناجحة وسمعة ٧٥ ومندوبان؛ بعدها جهّز مخزن تجميد وعربية تجميد لعقد قطوف.',target:'desk'},
  {title:'إدارة شبكة التوكيلات',hint:'حقق ١٠٠ ألف ج.م صافي ربح و١٢ دورة مسحوبات ناجحة مع التوكيلات الأربعة.',target:'desk'}
 ];
-const fresh=()=>({...developmentDefaults(),...logisticsDefaults(),...featureDefaults(),...expansionDefaults(),version:4,name:'التاجر',money:25000,debt:8000,day:1,time:0,elapsed:0,signed:false,inventoried:false,repaired:false,mission:0,chapter:1,completed:false,firstReward:false,rep:50,capacity:160,cooling:false,freezer:false,officeLevel:0,truckCount:1,truckCondition:100,vehicles:[{id:1,kind:'normal',condition:100,capacity:60}],selectedVehicle:1,staff:{driver:0,worker:0,rep:0,accountant:0},commissionDue:0,commissionPaid:0,autoTick:0,auto:false,contracts:{bakery:false,dairy:false,pantry:false,frozen:false},warehouses:{bakery:{owned:false,capacity:160},dairy:{owned:false,capacity:160},pantry:{owned:false,capacity:240},frozen:{owned:false,capacity:240}},cycles:{},successfulCycles:0,cycleHistory:[],purchases:{bakery:0,dairy:0,pantry:0,frozen:0},netPurchases:{bakery:0,dairy:0,pantry:0,frozen:0},stock:[],incoming:[],orders:[],trip:null,tripHistory:[],cargo:[],carry:null,invoices:[],ledger:[],clients:CLIENTS.map(c=>({...c,served:0,outstanding:0})),regions:['دمياط'],served:[],revenue:0,cogs:0,expenses:0,delivered:0,seq:1,orderTick:0,event:null,nextEvent:3,lastStatement:null,notices:[],settings:{sound:true,quality:'high'},position:{x:-6,z:4}});
+const fresh=()=>({...storyDefaults(),...developmentDefaults(),...logisticsDefaults(),...featureDefaults(),...expansionDefaults(),version:4,name:'التاجر',money:25000,debt:8000,day:1,time:0,elapsed:0,signed:false,inventoried:false,repaired:false,mission:0,chapter:1,completed:false,firstReward:false,rep:50,capacity:160,cooling:false,freezer:false,officeLevel:0,truckCount:1,truckCondition:100,vehicles:[{id:1,kind:'normal',condition:100,capacity:60}],selectedVehicle:1,staff:{driver:0,worker:0,rep:0,accountant:0},commissionDue:0,commissionPaid:0,autoTick:0,auto:false,contracts:{bakery:false,dairy:false,pantry:false,frozen:false},warehouses:{bakery:{owned:false,capacity:160},dairy:{owned:false,capacity:160},pantry:{owned:false,capacity:240},frozen:{owned:false,capacity:240}},cycles:{},successfulCycles:0,cycleHistory:[],purchases:{bakery:0,dairy:0,pantry:0,frozen:0},netPurchases:{bakery:0,dairy:0,pantry:0,frozen:0},stock:[],incoming:[],orders:[],trip:null,tripHistory:[],cargo:[],carry:null,invoices:[],ledger:[],clients:CLIENTS.map(c=>({...c,served:0,outstanding:0})),regions:['دمياط'],served:[],revenue:0,cogs:0,expenses:0,delivered:0,seq:1,orderTick:0,event:null,nextEvent:3,lastStatement:null,notices:[],settings:{sound:true,quality:'high'},position:{x:-6,z:4}});
 class Simulation{
  constructor(state){this.s=state?Simulation.validate(state):fresh();this.onChange=()=>{};this.onNotice=()=>{};this.rng=Math.random;this.advance();this.unlockDevelopment();this.assignFleetBrands();}
  get stockTotal(){return this.s.stock.reduce((a,b)=>a+b.qty,0)}
@@ -217,4 +218,5 @@ installEconomyFeatures(Simulation,{PRODUCTS,COMPANIES,ROLES,MAP,routePosition,DA
 installExpansion(Simulation,{PRODUCTS,COMPANIES,ROLES,MAP,MONEY});
 installLogistics(Simulation,{PRODUCTS,COMPANIES,MAP,MONEY,DAY_SECONDS});
 installDevelopment(Simulation,{PRODUCTS});
+installStory(Simulation);
 export {Simulation,PRODUCTS,COMPANIES,MISSIONS,VEHICLES,ROLES,MAP,routePosition,DAY_SECONDS,ORDER_SECONDS,MONEY,fresh};

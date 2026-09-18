@@ -1,0 +1,32 @@
+import {SCENES,RECURRING,BARKS,CAST,sceneById} from '../story-data.js';
+export const storyDefaults=(legacy=false)=>({story:{version:1,enabled:!legacy,offered:!legacy,done:[],queue:[],decisions:{},history:[],bonds:{saeed:50,rabie:50,mona:50,hossam:50,sherif:50,player:50},flags:{},chapter:0,path:'',strategy:'',ending:'',prep:0,counts:{},cooldowns:{},actions:0,lastEvent:0,lastScene:-90,lastBark:-20,bark:null,barkSeq:0,frequency:'normal',snooze:0}});
+const clamp=(n,a=0,b=100)=>Math.max(a,Math.min(b,n));
+export function installStory(Simulation){
+ const p=Simulation.prototype,wrap=(name,fn)=>{const old=p[name];p[name]=function(...args){return fn.call(this,old,...args)}};
+ p.enableStory=function(enabled=true){const n=this.s.story;n.enabled=!!enabled;n.offered=true;n.snooze=0;this.storyEvaluate();this.change();return true};
+ p.storyEvaluate=function(){const s=this.s,n=s.story;if(!n?.enabled)return;const next=SCENES.find(x=>!n.done.includes(x.id)&&(!x.after||n.done.includes(x.after))&&x.when(s));if(next&&!n.queue.includes(next.id)){n.queue.unshift(next.id);n.queue=n.queue.slice(0,6)}};
+ p.storySignal=function(action){const s=this.s,n=s.story;if(!n?.enabled)return;n.actions++;n.counts[action]=(n.counts[action]||0)+1;const b=BARKS[action];if(b&&s.elapsed-n.lastBark>= (n.frequency==='rich'?12:24)){const [who,text]=b[(n.counts[action]-1)%b.length];n.bark={who,text,at:s.elapsed,id:++n.barkSeq};n.lastBark=s.elapsed;}this.storyEvaluate();this.storyRecurring(action)};
+ p.storyRecurring=function(trigger){const s=this.s,n=s.story;if(!n?.enabled||n.queue.length||!n.done.includes('first')||n.actions-n.lastEvent<3||s.elapsed-n.lastScene<(n.frequency==='rich'?65:100))return;const choices=RECURRING.filter(x=>(x.trigger===trigger||trigger==='timer'&&x.trigger==='timer')&&(!x.when||x.when(s))&&(!x.once||!n.done.includes(x.id))&&s.elapsed-(n.cooldowns[x.id]??-1000)>=360);choices.sort((a,b)=>(n.cooldowns[a.id]??-1000)-(n.cooldowns[b.id]??-1000));if(choices[0]){n.queue.push(choices[0].id);n.lastEvent=n.actions;}};
+ p.chooseStory=function(id,choiceId){const s=this.s,n=s.story,scene=sceneById(id),choice=scene?.choices.find(c=>c.id===choiceId);if(!n.enabled||n.queue[0]!==id||!choice)return false;const e=choice.effect;if(e.cost&&!this.spend(e.cost,true,'القصة: '+scene.title))return this.fail('الخزنة لا تكفي لهذا الاختيار. اختار البديل بدون تكلفة أو ارجع له لاحقًا.');
+ if(e.rep)s.rep=clamp(s.rep+e.rep);if(e.trust)s.clients[0].trust=clamp(s.clients[0].trust+e.trust);if(e.allTrust)for(const c of s.clients)c.trust=clamp(c.trust+e.allTrust);if(e.mood)for(const m of s.team)m.mood=clamp(m.mood+e.mood);if(e.rival)s.rivalShare=clamp(s.rivalShare+e.rival,5,90);if(e.bond)n.bonds[e.bond[0]]=clamp(n.bonds[e.bond[0]]+e.bond[1]);if(e.prep)n.prep=Math.min(5,n.prep+e.prep);for(const key of ['path','strategy','ending'])if(e[key])n[key]=e[key];if(e.flag)n.flags[e.flag]=true;
+ if(!n.done.includes(id))n.done.push(id);n.decisions[id]=choiceId;n.queue.shift();n.cooldowns[id]=s.elapsed;n.lastScene=s.elapsed;n.snooze=0;n.chapter=Math.max(n.chapter,scene.chapter||0);n.history.unshift({scene:id,choice:choiceId,day:s.day,at:s.elapsed});n.history=n.history.slice(0,100);this.log('قصة الوكالة: '+scene.title+' — '+choice.label,0);this.storyEvaluate();this.change();return true};
+ p.deferStory=function(){this.s.story.snooze=this.s.elapsed+90;this.change()};
+ p.storyFrequency=function(value){if(!['normal','rich'].includes(value))return false;this.s.story.frequency=value;this.change();return true};
+ for(const action of Object.keys(BARKS).filter(x=>x!=='deliverOrder'))wrap(action,function(old,...args){const ok=old.apply(this,args);if(ok===true)this.storySignal(action);return ok});
+ wrap('deliverOrder',function(old,o,t){const before=t.deliveredOrders.includes(o.id);const result=old.call(this,o,t);if(!before&&t.deliveredOrders.includes(o.id)&&!t.refusedOrders?.includes(o.id))this.storySignal('deliverOrder');return result});
+ wrap('pack',function(old,...args){const ok=old.apply(this,args);if(ok&&this.s.pickingJob&&this.s.story.enabled&&this.s.story.prep>0){this.s.pickingJob.duration=Math.max(2,this.s.pickingJob.duration*.9);this.s.story.prep--;this.change()}return ok});
+ wrap('tick',function(old,dt){old.call(this,dt);this.storyEvaluate();this.storyRecurring('timer')});
+ const validate=Simulation.validate;Simulation.validate=function(data){const s=validate({...data,...(data?.story?{}:storyDefaults(true))}),n=s.story,bad=()=>{throw Error('بيانات حكاية الوكالة غير صالحة.')},obj=v=>v&&typeof v==='object'&&!Array.isArray(v),num=(v,min=0,max=1e12)=>Number.isFinite(v)&&v>=min&&v<=max,int=(v,min=0,max=1e12)=>Number.isInteger(v)&&num(v,min,max);
+ if(!obj(n)||n.version!==1||typeof n.enabled!=='boolean'||typeof n.offered!=='boolean'||!int(n.chapter,0,5)||!int(n.prep,0,5)||!['normal','rich'].includes(n.frequency)||!['','people','system'].includes(n.path)||!['','steady','service'].includes(n.strategy)||!['','roots','network'].includes(n.ending))bad();
+ for(const k of ['actions','lastEvent','barkSeq'])if(!int(n[k]))bad();for(const k of ['lastScene','lastBark'])if(!num(n[k],-1000,s.elapsed))bad();if(!num(n.snooze,0,s.elapsed+90.01))bad();
+ for(const k of ['decisions','bonds','flags','counts','cooldowns'])if(!obj(n[k]))bad();
+ for(const k of ['done','queue'])if(!Array.isArray(n[k])||n[k].length>(k==='queue'?6:SCENES.length+RECURRING.length)||new Set(n[k]).size!==n[k].length||n[k].some(id=>!sceneById(id)))bad();
+ for(const id of n.queue)if(n.done.includes(id)&&(SCENES.some(x=>x.id===id)||sceneById(id).once))bad();
+ for(const [id,v]of Object.entries(n.decisions))if(!sceneById(id)?.choices.some(c=>c.id===v)||!n.done.includes(id))bad();
+ for(const id of n.done)if(!n.decisions[id])bad();
+ for(const id of Object.keys(CAST))if(!num(n.bonds[id],0,100))bad();
+ const flags=['monaHelp','monaReturn','serviceReturn','steadyReturn','finished'];for(const [id,v]of Object.entries(n.flags))if(!flags.includes(id)||v!==true)bad();
+ for(const [id,v]of Object.entries(n.cooldowns))if(!sceneById(id)||!num(v,0,s.elapsed))bad();for(const [id,v]of Object.entries(n.counts))if(!BARKS[id]||!int(v))bad();
+ if(!Array.isArray(n.history)||n.history.length>100)bad();for(const h of n.history)if(!obj(h)||!sceneById(h.scene)?.choices.some(c=>c.id===h.choice)||!int(h.day,1,s.day)||!num(h.at,0,s.elapsed))bad();
+ if(n.bark&&(!obj(n.bark)||!CAST[n.bark.who]||typeof n.bark.text!=='string'||n.bark.text.length>300||!num(n.bark.at,0,s.elapsed)||!int(n.bark.id)))bad();return s};
+}
