@@ -1,0 +1,1 @@
+Source rebuild: Python with numpy, scipy and Pillow. Run fetch.py, build.py, then glb.py. Downloads are stored in character-work next to the game directory. Runtime files need no Python. All assets are documented in assets/manager/LICENSE.txt. No apron is generated.

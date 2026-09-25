@@ -1,7 +1,7 @@
 from pathlib import Path
 import hashlib,json
 root=Path(__file__).resolve().parent.parent
-files=sorted(p for p in root.rglob('*') if p.is_file() and p.suffix in ['.html','.js','.css','.json','.png','.svg','.glb'] and not any(part in ['tests','scripts','server-data','node_modules','.git','.github','_site'] for part in p.relative_to(root).parts) and p.name not in ['service-worker.js','Play-Offline.html','package.json','package-lock.json','release.json'])
+files=sorted(p for p in root.rglob('*') if p.is_file() and '.tmp.' not in p.name and p.suffix in ['.html','.js','.css','.json','.png','.svg','.glb'] and not any(part in ['private-tools','tests','scripts','server-data','node_modules','.git','.github','_site'] for part in p.relative_to(root).parts) and p.name not in ['service-worker.js','Play-Offline.html','Character-Preview.html','warehouse-manager.glb','package.json','package-lock.json','release.json'])
 template=(root/'scripts/service-worker-template.js').read_text()
 version=hashlib.sha256(template.encode()+(root/'package.json').read_bytes()+b''.join(str(p.relative_to(root)).encode()+p.read_bytes() for p in files)).hexdigest()[:16]
 (root/'release.json').write_text(json.dumps({'build':version,'version':json.loads((root/'package.json').read_text())['version']})+'\n')

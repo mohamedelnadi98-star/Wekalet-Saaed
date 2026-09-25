@@ -1,6 +1,6 @@
 """Build a single offline HTML with native ES modules supplied through blob URLs."""
 from pathlib import Path
-import base64,json,re,posixpath
+import base64,json,re,posixpath,sys
 root=Path(__file__).resolve().parent.parent
 sources={}
 def collect(file):
@@ -12,17 +12,23 @@ def collect(file):
  for match in re.finditer(r"""from\s*(['"])(\.[^'"]+)\1""",text):
   dep=posixpath.normpath(posixpath.join(posixpath.dirname(file),match[2]))
   collect(dep)
+owner='--owner' in sys.argv
 collect('game.js')
+if owner:collect('private-tools/owner.js')
 assets={k:'data:image/png;base64,'+base64.b64encode((root/'assets'/f'{k}.png').read_bytes()).decode() for k in ['wood','concrete']}
 portraits={p.stem:'data:image/png;base64,'+base64.b64encode(p.read_bytes()).decode() for p in (root/'assets/portraits').glob('*.png')}
-models={} # v7 uses locally constructed adult meshes; no old cartoon assets loaded
-boot='window.SAEED_PORTRAITS='+json.dumps(portraits)+';\n'+'window.SAEED_MODELS='+json.dumps(models)+';\n'+"window.SAEED_ASSETS="+json.dumps(assets)+";\nconst sources="+json.dumps(sources,ensure_ascii=False)+",urls={};\n"+r"""
+models={}
+manager_textures={p.name:'data:image/png;base64,'+base64.b64encode(p.read_bytes()).decode() for p in (root/'assets/manager').glob('*.png') if '.tmp.' not in p.name}
+boot='window.SAEED_MANAGER_TEXTURES='+json.dumps(manager_textures)+';\n'+'window.SAEED_PORTRAITS='+json.dumps(portraits)+';\n'+'window.SAEED_MODELS='+json.dumps(models)+';\n'+"window.SAEED_ASSETS="+json.dumps(assets)+";\nconst sources="+json.dumps(sources,ensure_ascii=False)+",urls={};\n"+r"""
 function resolve(file,relative){const parts=file.split('/');parts.pop();for(const p of relative.split('/')){if(p==='..')parts.pop();else if(p!=='.')parts.push(p)}return parts.join('/')}
 function moduleURL(file){if(urls[file])return urls[file];const source=sources[file].replace(/from\s*(['"])(\.[^'"]+)\1/g,(_,q,p)=>'from '+q+moduleURL(resolve(file,p))+q);return urls[file]=URL.createObjectURL(new Blob([source],{type:'text/javascript'}))}
 import(moduleURL('game.js')).catch(e=>{const el=document.getElementById('loading');el.textContent='تعذر التشغيل: '+e.message;console.error(e)});
 """
+if owner:boot=boot.replace("import(moduleURL('game.js'))","import(moduleURL('private-tools/owner.js')).then(()=>import(moduleURL('game.js')))")
 html=(root/'index.html').read_text().replace('<link rel="stylesheet" href="style.css">','<style>'+(root/'style.css').read_text()+'</style>')
 html=re.sub(r'<link rel="manifest"[^>]*>|<link rel="icon"[^>]*>','',html)
 html=html.replace('<script type="module" src="game.js"></script>','<script type="module">'+boot.replace('</script','<\\/script')+'</script>')
-(root/'Play-Offline.html').write_text(html)
+output=root/'private-tools/Play-Owner.html' if owner else root/'Play-Offline.html'
+if owner:html=html.replace('<title>','<title>نسخة المالك — ').replace('وكالة سعيد · النسخة','نسخة اختبار خاصة · النسخة')
+output.write_text(html)
 print(f'Portable build: {len(sources)} modules, {len(html.encode()):,} bytes')

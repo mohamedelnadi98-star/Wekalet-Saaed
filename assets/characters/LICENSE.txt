@@ -1,0 +1,20 @@
+Player anatomical head — MakeHuman hm08 derivative (CC0 1.0)
+
+Source: MakeHuman Community official repository.
+Base mesh: https://github.com/makehumancommunity/makehuman/blob/master/makehuman/data/3dobjs/base.obj
+Morphs: makehuman/data/targets/macrodetails/caucasian-male-young.target
+        makehuman/data/targets/macrodetails/african-male-young.target
+License: https://github.com/makehumancommunity/makehuman/blob/master/LICENSE.md
+CC0: https://creativecommons.org/publicdomain/zero/1.0/
+
+Source headers explicitly dedicate these assets to CC0 in September 2020.
+Base mesh credits: Data Collection AB, Joel Palmius, Jonas Hauquier (2020).
+Morph original credit: Manuel Bastioni (2014); see original headers for subsequent transfers.
+
+Modifications for Saeed Agency: blended adult male shape; isolated head;
+scaled to game units; extended neck boundary; vertex-colored skin, hair,
+brows, lips and stubble; native Three.js geometry and articulated integration.
+The delivered player-head.js contains the finished geometry and works offline.
+Clothing and animation rig are custom game geometry, not a downloaded full-body rig.
+Rebuild with scripts/build-player-head.py using the source OBJ saved as
+agency-base.obj and the two .target files in one directory.

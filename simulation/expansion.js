@@ -1,3 +1,4 @@
+import {CITY_CLIENTS,careFor} from '../city-catalog.js';
 import {validRacks,rackApproach} from './layout.js';
 // Additive systems. The selected vehicle retains the v4 trip/cargo fields.
 export const LAYOUTS={
@@ -7,13 +8,13 @@ export const LAYOUTS={
 };
 export function expansionDefaults(){return {
  expansion:1,dayLength:900,guideSeen:false,fleetTrips:[],vehicleLoads:{},routePriorities:{},collectionReceipts:[],
- customerCare:Array.from({length:6},(_,i)=>({type:i===3?'chain':[1,2,4].includes(i)?'super':'grocery',loyalty:55,late:0,shortages:0,lostUntil:0,creditLimit:[8000,6500,7000,13000,12000,6000][i],visitHour:8,remindedDay:0})),
+ customerCare:CITY_CLIENTS.map(careFor),
  repRoutes:[],repReports:[],companyRelations:{},supplierBills:[],supplierTerms:{},storyChoices:{},storyLog:[],
  warehousePlan:{layout:'classic',slots:{bakery:0,dairy:2,pantry:1,frozen:3},staging:0,secondGate:false,returnsZone:false},
  returnQuarantine:[],pickingJob:null,workerJob:null,branch:false,rivalAction:null
 };}
 export function installExpansion(Simulation,{PRODUCTS:P,COMPANIES:C,ROLES,MAP,MONEY}){
- ROLES.driver.max=3;
+ ROLES.driver.max=5;
  const proto=Simulation.prototype;
  const wrap=(key,fn)=>{const old=proto[key];proto[key]=function(...args){return fn.call(this,old,...args)}};
  const total=b=>b.reduce((n,x)=>n+x.qty,0);
@@ -41,16 +42,16 @@ export function installExpansion(Simulation,{PRODUCTS:P,COMPANIES:C,ROLES,MAP,MO
  wrap('dispatch',function(old,route){
  if(this.s.pickingJob)return this.fail('استنى العامل يكمّل تجهيز الحمولة قبل الخروج.');
  if(this.allTrips().length>=this.s.staff.driver)return this.fail('كل السائقين في رحلات؛ عيّن سائقًا إضافيًا أو انتظر الرجوع.');
- const extra=this.vehicle.kind==='chilled'?40:this.vehicle.kind==='frozen'?65:0;
+ const extra=this.vehicle.kind==='chilled'?40:this.vehicle.kind==='frozen'?65:this.vehicle.kind==='jumbo'?100:0;
  if(this.s.money<extra+70)return this.fail('الخزنة لا تكفي للوقود وتشغيل التبريد.');
- const r=old.call(this,route);if(r){this.s.money-=extra;this.s.expenses+=extra;if(extra)this.log('تشغيل وحدة التبريد أثناء الرحلة',-extra);
+ const r=old.call(this,route);if(r){this.s.money-=extra;this.s.expenses+=extra;if(extra)this.log(this.vehicle.kind==='jumbo'?'تشغيل الجامبو':'تشغيل وحدة التبريد أثناء الرحلة',-extra);
  const used=this.s.fleetTrips.map(t=>t.driverIndex);this.s.trip.driverIndex=Array.from({length:this.s.staff.driver},(_,i)=>i).find(i=>!used.includes(i));this.s.vehicleLoads[this.s.selectedVehicle]=[];
  this.notice('العربية '+this.s.selectedVehicle+' خرجت؛ تقدر تختار عربية ثانية وتكمل التحميل.');this.change()}return r;
  });
  wrap('buildTrip',function(old,...args){const t=old.apply(this,args);const plan=this.s?.warehousePlan;
  if(plan)for(const l of t.legs)if(l.kind==='unload')l.duration*=plan.secondGate?.85:1;if(this.s?.branch)for(const l of t.legs)if(l.kind==='drive'&&l.client!==undefined&&this.s.clients[l.client].area==='الدقهلية')l.duration*=.8;
  t.total=t.remaining=t.legs.reduce((n,l)=>n+l.duration,0);return t});
- proto.prioritize=function(client){client=Number(client);if(!Number.isInteger(client)||client<0||client>5||this.s.trip)return false;const id=this.s.selectedVehicle,prev=this.s.routePriorities[id]||[];this.s.routePriorities[id]=[client,...prev.filter(i=>i!==client)];this.change();return true};
+ proto.prioritize=function(client){client=Number(client);if(!Number.isInteger(client)||client<0||client>=CITY_CLIENTS.length||this.s.trip)return false;const id=this.s.selectedVehicle,prev=this.s.routePriorities[id]||[];this.s.routePriorities[id]=[client,...prev.filter(i=>i!==client)];this.change();return true};
  // Receipts are append-only and bounded. Collection changes cash, not sales revenue.
  proto.collect=function(id,amount){
  const s=this.s,v=s.invoices.find(v=>v.id===Number(id)&&v.type==='sale'&&!v.settled);amount=MONEY(Number(amount));
@@ -77,7 +78,7 @@ export function installExpansion(Simulation,{PRODUCTS:P,COMPANIES:C,ROLES,MAP,MO
  });
  wrap('generateOrder',function(old,first=false){
  const seq=this.s.seq;old.call(this,first);const s=this.s,o=s.orders.find(o=>o.id>=seq);if(!o||first)return;
- if(s.customerCare[o.client].lostUntil>s.day){const available=s.clients.filter(c=>s.regions.includes(c.area)&&s.customerCare[c.id].lostUntil<=s.day);if(!available.length){s.orders=s.orders.filter(x=>x.id!==o.id);return}o.client=available[Math.floor(this.rng()*available.length)].id}
+ if(s.customerCare[o.client].lostUntil>s.day){const available=s.clients.filter(c=>s.delivered>=(c.unlock||0)&&s.regions.includes(c.area)&&s.customerCare[c.id].lostUntil<=s.day);if(!available.length){s.orders=s.orders.filter(x=>x.id!==o.id);return}o.client=available[Math.floor(this.rng()*available.length)].id}
  const care=s.customerCare[o.client];o.qty=care.type==='chain'?40:care.type==='super'?20:10;o.profile=care.type;
  if(care.type==='chain')o.price=MONEY(o.price*.98);this.onChange(s);
  });
@@ -87,7 +88,7 @@ wrap('resolveTrip',function(old,choice){const t=this.s.trip,e=this.s.tripEvent,c
  proto.assignRep=function(index,region,task){
  index=Number(index);if(index<0||index>=this.s.staff.rep||!this.s.regions.includes(region)||!['sales','collect','recover'].includes(task))return false;
  if(this.s.repRoutes.some(r=>r.index===index))return this.fail('المندوب في زيارة بالفعل.');
- const clients=this.s.clients.filter(c=>c.area===region).map(c=>c.id);this.s.repRoutes.push({index,region,task,clients,stop:0,elapsed:0,duration:18,from:{...MAP.depot},to:{...MAP.clients[clients[0]]},phase:'drive',visits:0});this.change();return true;
+ const clients=this.s.clients.filter(c=>c.area===region&&this.s.delivered>=(c.unlock||0)).map(c=>c.id);this.s.repRoutes.push({index,region,task,clients,stop:0,elapsed:0,duration:18,from:{...MAP.depot},to:{...MAP.clients[clients[0]]},phase:'drive',visits:0});this.change();return true;
  };
  proto.tickReps=function(dt){const s=this.s;for(const r of [...s.repRoutes]){const member=s.team.filter(m=>m.role==='rep')[r.index];r.elapsed+=dt*(1+(member?.level||1)*.04);if(r.elapsed<r.duration)continue;r.elapsed=0;
  if(r.phase==='return'){s.repRoutes=s.repRoutes.filter(x=>x!==r);this.notice('المندوب '+(r.index+1)+' رجع من '+r.visits+' زيارات.');this.change();continue}
@@ -124,7 +125,7 @@ wrap('resolveTrip',function(old,choice){const t=this.s.trip,e=this.s.tripEvent,c
  proto.inspectReturn=function(id){const s=this.s,index=s.returnQuarantine.findIndex(b=>b.id===Number(id));if(index<0)return false;const b=s.returnQuarantine.splice(index,1)[0];if(b.expires<=s.day){s.expenses+=b.qty*b.unit;this.notice('الدفعة انتهت صلاحيتها واتسجلت تالفًا.','bad')}else{s.stock.push(b);this.notice('فحص الصلاحية اكتمل والدفعة متاحة للبيع.')}this.change();return true};
  const receiveNow=proto.receive;
  proto.receive=function(id){const s=this.s;if(!s.staff.worker)return receiveNow.call(this,id);if(s.workerJob||s.pickingJob)return false;const b=s.incoming.find(b=>b.id===Number(id)&&b.ready);if(!b)return false;const slot=s.warehousePlan.slots[P[b.pid].company],to=rackApproach(s,slot);
- s.workerJob={id:b.id,elapsed:0,duration:8,batch:{pid:b.pid,qty:b.qty,order:'receive'+b.id},vehicle:0,from:{x:9,z:4.3},to};this.notice('العامل بينقل الشحنة من البالته لمنطقة الشركة.');this.change();return true};
+ s.workerJob={id:b.id,elapsed:0,duration:8,batch:{pid:b.pid,qty:b.qty,order:'receive'+b.id},vehicle:0,from:{x:9,z:4.3},to};this.notice('العامل بينقل الشحنة من البالتة لمنطقة الشركة.');this.change();return true};
  proto.story=function(key,text){if(this.s.storyLog.some(x=>x.key===key))return;this.s.storyLog.push({key,text,day:this.s.day});this.notice(text)};
  proto.storyDecision=function(key,choice){
  const s=this.s;if(s.storyChoices[key]||!['service','cash'].includes(choice))return false;
@@ -147,7 +148,7 @@ wrap('resolveTrip',function(old,choice){const t=this.s.trip,e=this.s.tripEvent,c
  wrap('nextDay',function(old){if(this.s.bankrupt)return;old.call(this);const s=this.s;
  for(const [cid]of Object.entries(C))if(s.contracts[cid]){const r=this.relation(cid);if(s.day>=r.nextVisit){const okay=this.requirements(cid).every(x=>x.met)&&s.cycles[cid].misses<2&&!s.supplierBills.some(b=>b.cid===cid&&!b.settled&&b.due<s.day);r.score=Math.max(0,Math.min(100,r.score+(okay?10:-15)));r.nextVisit=s.day+7;if(!okay&&!r.warningUntil){r.warningUntil=s.day+3;this.notice('مسؤول '+C[cid].short+': مهلة ٣ أيام لتصحيح التجهيزات أو المسحوبات أو المديونية.','bad')}if(okay&&r.benefit==='support'&&s.cycleHistory.some(h=>h.cid===cid&&h.endDay===s.day&&h.achieved)){s.money+=250;s.expenses-=250;this.log('دعم عروض '+C[cid].short,250)}}if(r.warningUntil&&s.day>=r.warningUntil&&!r.suspended){r.suspended=true;this.notice('توريد '+C[cid].short+' متوقف لحين التصحيح؛ المخزون القديم محفوظ.','bad')}}
  if(s.rivalAction&&!s.rivalAction.resolved&&s.day>s.rivalAction.deadline){const care=s.customerCare[s.rivalAction.client];if(care.loyalty<60&&!Object.values(s.companyRelations).some(r=>r.benefit==='exclusive'&&!r.suspended)){care.lostUntil=s.day+3;this.notice('العميل انتقل مؤقتًا للمنافس: '+s.clients[s.rivalAction.client].name+' بسبب ضعف الولاء. زيارة استعادة ترجّعه.','bad')}s.rivalAction.resolved=true}
- if(s.day%3===0&&s.delivered>=3){const ids=s.clients.filter(c=>s.regions.includes(c.area)&&!s.customerCare[c.id].lostUntil).map(c=>c.id);const client=ids.sort((a,b)=>s.customerCare[a].loyalty-s.customerCare[b].loyalty)[0];if(client!==undefined)s.rivalAction={client,kind:['price','route','service'][Math.floor(this.rng()*3)],deadline:s.day+1,resolved:false};}
+ if(s.day%3===0&&s.delivered>=3){const ids=s.clients.filter(c=>s.delivered>=(c.unlock||0)&&s.regions.includes(c.area)&&!s.customerCare[c.id].lostUntil).map(c=>c.id);const client=ids.sort((a,b)=>s.customerCare[a].loyalty-s.customerCare[b].loyalty)[0];if(client!==undefined)s.rivalAction={client,kind:['price','route','service'][Math.floor(this.rng()*3)],deadline:s.day+1,resolved:false};}
  for(const c of s.customerCare)if(c.lostUntil&&c.lostUntil<=s.day)c.lostUntil=0;
  s.returnQuarantine=s.returnQuarantine.filter(b=>{if(b.expires>s.day)return true;s.expenses+=b.qty*b.unit;this.notice('دفعة مرتجع انتهت صلاحيتها واتسجلت تالفًا.','bad');return false});
  if(s.branch){s.money-=150;s.expenses+=150;this.log('تشغيل فرع الدقهلية',-150)}
@@ -167,26 +168,26 @@ wrap('resolveTrip',function(old,choice){const t=this.s.trip,e=this.s.tripEvent,c
  const n=(x,min=0,max=1e12)=>Number.isFinite(x)&&x>=min&&x<=max;
  if(![900,1800].includes(s.dayLength)||typeof s.guideSeen!=='boolean')bad();
  if(!Array.isArray(s.returnQuarantine)||s.returnQuarantine.length>2000)bad();baseValidate({...s,stock:s.returnQuarantine});
- if(!Array.isArray(s.fleetTrips)||s.fleetTrips.length>2||!s.vehicleLoads||!s.routePriorities)bad();
+ if(!Array.isArray(s.fleetTrips)||s.fleetTrips.length>4||!s.vehicleLoads||!s.routePriorities)bad();
  if(s.trip&&s.trip.vehicleId!==s.selectedVehicle)bad();
  if(s.fleetTrips.some(t=>!s.vehicles.some(v=>v.id===t.vehicleId)||t.vehicleId===s.selectedVehicle)||new Set(s.fleetTrips.map(t=>t.vehicleId)).size!==s.fleetTrips.length)bad();
  for(const t of s.fleetTrips)baseValidate({...s,trip:t,selectedVehicle:t.vehicleId,tripEvent:t.event||null,tripDelay:t.delay||0,cargo:s.vehicleLoads[t.vehicleId]||[]});
- for(const [id,cargo]of Object.entries(s.vehicleLoads)){if(!s.vehicles.some(v=>v.id===Number(id)))bad();baseValidate({...s,cargo});if(total(cargo)>60)bad()}
- for(const plan of Object.values(s.routePriorities))if(!Array.isArray(plan)||plan.length>6||new Set(plan).size!==plan.length||plan.some(i=>!Number.isInteger(i)||i<0||i>5))bad();
- if(!Array.isArray(s.customerCare)||s.customerCare.length!==6)bad();s.customerCare.forEach((c,i)=>{c.shortages=c.shortages||0;if(!n(c.shortages)||!['grocery','super','chain'].includes(c.type)||!n(c.loyalty,0,100)||!n(c.creditLimit,0,30000)||!n(c.late)||!n(c.lostUntil)||!n(c.remindedDay)||!n(c.visitHour,0,23))bad();s.clients[i].credit=c.creditLimit});
- if(!Array.isArray(s.collectionReceipts)||s.collectionReceipts.length>300||s.collectionReceipts.some(r=>!n(r.id,1)||!n(r.amount,.01)||!n(r.day,1)||!Number.isInteger(r.client)||r.client<0||r.client>5))bad();
+ for(const [id,cargo]of Object.entries(s.vehicleLoads)){if(!s.vehicles.some(v=>v.id===Number(id)))bad();baseValidate({...s,cargo});if(total(cargo)>s.vehicles.find(v=>v.id===Number(id)).capacity)bad()}
+ for(const plan of Object.values(s.routePriorities))if(!Array.isArray(plan)||plan.length>CITY_CLIENTS.length||new Set(plan).size!==plan.length||plan.some(i=>!Number.isInteger(i)||i<0||i>=CITY_CLIENTS.length))bad();
+ if(Array.isArray(s.customerCare)&&s.customerCare.length===6)s.customerCare.push(...CITY_CLIENTS.slice(6).map(careFor));if(!Array.isArray(s.customerCare)||s.customerCare.length!==CITY_CLIENTS.length)bad();s.customerCare.forEach((c,i)=>{c.shortages=c.shortages||0;if(!n(c.shortages)||!['grocery','super','chain','restaurant'].includes(c.type)||!n(c.loyalty,0,100)||!n(c.creditLimit,0,30000)||!n(c.late)||!n(c.lostUntil)||!n(c.remindedDay)||!n(c.visitHour,0,23))bad();s.clients[i].credit=c.creditLimit});
+ if(!Array.isArray(s.collectionReceipts)||s.collectionReceipts.length>300||s.collectionReceipts.some(r=>!n(r.id,1)||!n(r.amount,.01)||!n(r.day,1)||!Number.isInteger(r.client)||r.client<0||r.client>=CITY_CLIENTS.length))bad();
  for(const v of s.invoices)if(v.paid!==undefined&&!n(v.paid,0,v.amount))bad();
  const w=s.warehousePlan;if(w?.customRacks&&!validRacks(w.customRacks,s.capacity))bad();if(!w||!LAYOUTS[w.layout]||!w.slots||Object.keys(w.slots).length!==4||Object.keys(C).some(cid=>!Number.isInteger(w.slots[cid])||!n(w.slots[cid],0,3))||new Set(Object.values(w.slots)).size!==4||!n(w.staging,0,2)||typeof w.secondGate!=='boolean'||typeof w.returnsZone!=='boolean'||typeof s.branch!=='boolean')bad();
- if(s.workerJob){const j=s.workerJob;if(!s.incoming.some(b=>b.id===j.id&&b.ready)||!n(j.elapsed)||!n(j.duration,1,100)||!j.batch||!P[j.batch.pid])bad();for(const p of [j.from,j.to])if(!p||!n(p.x,-14,14)||!n(p.z,-8,16.3))bad()}
- if(s.pickingJob){const j=s.pickingJob;if(!n(j.elapsed)||!n(j.duration,.1,100)||!s.vehicles.some(v=>v.id===j.vehicle)||s.carry)bad();baseValidate({...s,carry:j.batch});for(const p of [j.from,j.to])if(!p||!n(p.x,-14,14)||!n(p.z,-8,16.3))bad()}
+ if(s.workerJob){const j=s.workerJob;if(!s.incoming.some(b=>b.id===j.id&&b.ready)||!n(j.elapsed)||!n(j.duration,1,100)||!j.batch||!P[j.batch.pid])bad();for(const p of [j.from,j.to])if(!p||!n(p.x,-60,14)||!n(p.z,-45,18))bad()}
+ if(s.pickingJob){const j=s.pickingJob;if(!n(j.elapsed)||!n(j.duration,.1,100)||!s.vehicles.some(v=>v.id===j.vehicle)||s.carry)bad();baseValidate({...s,carry:j.batch});for(const p of [j.from,j.to])if(!p||!n(p.x,-60,14)||!n(p.z,-45,18))bad()}
  if(!Array.isArray(s.repRoutes)||s.repRoutes.length>3||new Set(s.repRoutes.map(r=>r.index)).size!==s.repRoutes.length)bad();
- for(const r of s.repRoutes){if(!Number.isInteger(r.index)||!n(r.index,0,s.staff.rep-1)||!['sales','collect','recover'].includes(r.task)||!['drive','visit','return'].includes(r.phase)||!n(r.elapsed)||!n(r.duration,1,100)||!Array.isArray(r.clients)||r.clients.length>6||r.clients.some(i=>!Number.isInteger(i)||i<0||i>5)||!Number.isInteger(r.stop)||!n(r.stop,0,r.clients.length)||!n(r.visits))bad();for(const p of [r.from,r.to])if(!p||!n(p.x,0,900)||!n(p.y,0,520))bad()}
- if(!Array.isArray(s.repReports)||s.repReports.length>80||s.repReports.some(r=>typeof r.result!=='string'||r.result.length>200||!n(r.index,0,2)||!n(r.client,0,5)||!n(r.day,1)))bad();
+ for(const r of s.repRoutes){if(!Number.isInteger(r.index)||!n(r.index,0,s.staff.rep-1)||!['sales','collect','recover'].includes(r.task)||!['drive','visit','return'].includes(r.phase)||!n(r.elapsed)||!n(r.duration,1,100)||!Array.isArray(r.clients)||r.clients.length>CITY_CLIENTS.length||r.clients.some(i=>!Number.isInteger(i)||i<0||i>=CITY_CLIENTS.length)||!Number.isInteger(r.stop)||!n(r.stop,0,r.clients.length)||!n(r.visits))bad();for(const p of [r.from,r.to])if(!p||!n(p.x,0,MAP.width)||!n(p.y,0,MAP.height))bad()}
+ if(!Array.isArray(s.repReports)||s.repReports.length>80||s.repReports.some(r=>typeof r.result!=='string'||r.result.length>200||!n(r.index,0,2)||!n(r.client,0,CITY_CLIENTS.length-1)||!n(r.day,1)))bad();
  if(!s.companyRelations||!s.supplierTerms||!Array.isArray(s.supplierBills)||s.supplierBills.length>2000)bad();
  for(const [cid,r]of Object.entries(s.companyRelations))if(!C[cid]||!n(r.score,0,100)||!n(r.nextVisit,1)||!n(r.warningUntil)||typeof r.suspended!=='boolean'||![null,'credit','support','exclusive'].includes(r.benefit))bad();
  if(s.supplierBills.some(b=>!C[b.cid]||!n(b.amount,.01,10000)||!n(b.id,1)||!n(b.due,1)||typeof b.settled!=='boolean'))bad();
  if(!s.storyChoices||!Array.isArray(s.storyLog)||s.storyLog.length>100||s.storyLog.some(x=>typeof x.key!=='string'||typeof x.text!=='string'||x.text.length>300||!n(x.day,1)))bad();
- if(s.rivalAction&&(!Number.isInteger(s.rivalAction.client)||!n(s.rivalAction.client,0,5)||!['price','route','service'].includes(s.rivalAction.kind)||!n(s.rivalAction.deadline,1)||typeof s.rivalAction.resolved!=='boolean'))bad();
+ if(s.rivalAction&&(!Number.isInteger(s.rivalAction.client)||!n(s.rivalAction.client,0,CITY_CLIENTS.length-1)||!['price','route','service'].includes(s.rivalAction.kind)||!n(s.rivalAction.deadline,1)||typeof s.rivalAction.resolved!=='boolean'))bad();
  return s;
  };
 }

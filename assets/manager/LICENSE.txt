@@ -1,0 +1,20 @@
+Warehouse Manager — Saeed Agency v15. No apron or apron accessories.
+
+The character uses CC0 1.0 mesh/texture assets:
+- MakeHuman hm08 body, male young targets, joint landmarks and skin weights.
+  https://github.com/makehumancommunity/makehuman
+  Source headers dedicate assets to CC0 (September 2020).
+  Credits: Data Collection AB, Joel Palmius, Jonas Hauquier; original target work Manuel Bastioni.
+- MakeHuman system assets: male_casualsuit01, shoes01, short02 hair,
+  low-poly eyes/brownlight texture, eyebrow009, young_caucasian_male2 skin.
+  https://static.makehumancommunity.org/assets/assetpacks/makehuman_system_assets.html
+- White shirt texture by MargaretToigo, CC0, confirmed by the asset pack manifest.
+  https://static.makehumancommunity.org/assets/assetpacks/system_clothes_materials01.html
+  The legacy .mhmat template file is not redistributed.
+
+License: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+Changes: body blend, fitted clothing, trimmed and rolled cuffs, concealed surface
+removal, relaxed bind pose, compact 47-bone rig including fingers, PBR factors,
+GLB export with idle/walk/carry clips, and game integration.
+PNG container metadata was normalized without changing decoded pixels.
+The GLB embeds all geometry, UVs, skin weights, textures and animations.

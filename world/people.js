@@ -1,4 +1,5 @@
 import * as T from '../vendor/three.module.js';
+import {createManager} from './manager.js';
 export const profiles=[
  {name:'صاحب الوكالة',skin:0xb88765,shirt:0xe1d7c1,pants:0x303e47,hair:0x302a26,height:1.82,build:1,beard:true},
  {name:'حسن',skin:0xa77550,shirt:0x687f87,pants:0x293a42,hair:0x352d27,height:1.78,build:1.08,beard:true},
@@ -15,7 +16,7 @@ export const profiles=[
  {name:'شريف',skin:0xab7757,shirt:0x6a343b,pants:0x33343c,hair:0x242220,height:1.81,build:1.1,beard:true},
  {name:'صاحب الوكالة — الحكاية',skin:0xb18060,shirt:0xd8cbb5,pants:0x3a4144,hair:0x292722,height:1.82,build:1,beard:true}
 ];
-export function adultHuman(world,identity=0){const spec=profiles[identity%profiles.length],g=new T.Group(),mats={};g.userData.identity=identity;g.userData.profile=spec.name;
+export function adultHuman(world,identity=0){if(identity===0||identity===13)return createManager(world,identity);const spec=profiles[identity%profiles.length],g=new T.Group(),mats={};g.userData.identity=identity;g.userData.profile=spec.name;
  for(const [name,color]of Object.entries({skin:spec.skin,shirt:spec.shirt,pants:spec.pants,hair:spec.hair,shoe:0x262824,eye:0x343027,lip:0x95695b,button:0xc2c3b4,vest:0xdda54c})){const key='person_'+identity+'_'+name;mats[name]=world.mats[key]||world.mat(key,color,name==='skin'?.7:.9)}
  if(!world.clothTexture)world.clothTexture=world.tex?.('fabric','#ddddda');for(const name of ['shirt','pants'])if(world.clothTexture){mats[name].bumpMap=world.clothTexture;mats[name].bumpScale=.007;}
  function ell(x,y,z,sx,sy,sz,mat,parent=g){const mesh=new T.Mesh(new T.SphereGeometry(1,16,12),mats[mat]);mesh.scale.set(sx,sy,sz);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh}
