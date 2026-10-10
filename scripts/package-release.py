@@ -1,14 +1,17 @@
 """Build the two required deliverables after the public and owner HTML builds."""
 from pathlib import Path
-import zipfile,hashlib,json,re,tempfile
+import zipfile,hashlib,json,re,tempfile,os
 root=Path(__file__).resolve().parent.parent
-version=json.loads((root/'package.json').read_text())['version'].split('.')[0]
-out=root.parent
-excluded={'node_modules','server-data','.git','_site','private-tools','__pycache__'}
+version=json.loads((root/'package.json').read_text())['version'].removesuffix('.0.0')
+out=Path(os.environ.get('SAEED_RELEASE_DIR',str(root.parent)));out.mkdir(exist_ok=True)
+excluded={'qa','node_modules','server-data','.git','_site','private-tools','__pycache__'}
 files=[p for p in root.rglob('*') if p.is_file() and '.tmp.' not in p.name and not any(x in excluded for x in p.relative_to(root).parts) and not p.name.startswith('.env') and p.suffix!='.pyc']
 public=out/f'Saeed-Agency-v{version}.zip';private=out/f'Saeed-Agency-Developer-v{version}.zip'
 owner=root/'private-tools/Play-Owner.html'
 if not owner.is_file():raise SystemExit('Both editions are required: restore private-tools/owner.js and build-portable.py --owner first.')
+for p in [root/'Play-Offline.html',owner]:
+ assert p.stat().st_size>1000000 and '<script type="module">' in p.read_text(), 'Incomplete portable build: '+str(p)
+assert (root/'Play-Offline.html').read_bytes()==(root/'_site/Play-Offline.html').read_bytes()
 worker=(root/'service-worker.js').read_text();hashes=json.loads(re.search(r'HASHES=(\{[^;]+?\});',worker)[1])
 for asset,digest in hashes.items():
  rel='index.html' if asset=='./' else asset.removeprefix('./')

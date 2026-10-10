@@ -1,25 +1,32 @@
+import {streetSurfaces,surfaceMesh,streetTexture} from './streets.js';
 import {CITY_CLIENTS} from '../city-catalog.js';
 import {batchScenery} from './static-batch.js';
 import {yardPosition} from './fleet-path.js';
 import * as T from '../vendor/three.module.js';
 import {MAP,routePosition,PRODUCTS} from '../economy.js';
-import {neighborhoodLayout,cityPoint} from './neighborhood-layout.js';
+import {neighborhoodLayout,cityPoint,overlaps} from './neighborhood-layout.js';
 export {cityPoint} from './neighborhood-layout.js';
 
 export const city={
  buildCity(){
  this.cityGroup=new T.Group();this.scene.add(this.cityGroup);this.cityTrucks=new Map();this.roadMarks=new T.Group();this.scene.add(this.roadMarks);
- this.mat('asphalt',0x38464b,.98);this.mat('sidewalk',0xb1b2a4,.96);this.mat('terracotta',0xb87556,.92);this.mat('cream',0xe1d3b5,.87);this.mat('windowLit',0xadc5bb,.4,.1);this.mats.windowLit.emissive.set(0xffd596);this.mats.windowLit.emissiveIntensity=.25;
- this.box(245,.35,140,56,-.35,24,'concrete',this.cityGroup);
+ this.mat('asphalt',0xffffff,.98,0,streetTexture('asphalt'));this.mat('sidewalk',0xffffff,.9,0,streetTexture('walk'));this.mat('terracotta',0xb87556,.92);this.mat('cream',0xe1d3b5,.87);this.mat('windowLit',0xadc5bb,.4,.1);this.mats.windowLit.emissive.set(0xffd596);this.mats.windowLit.emissiveIntensity=.25;
+ this.box(295,.35,165,85,-.35,30,'concrete',this.cityGroup);
  // Continuous depot driveway, main avenues and client access roads.
  const road=(x,z,w,d)=>{this.box(w,.035,d,x,-.15,z,'asphalt',this.cityGroup);if(w>d){for(let a=x-w/2+1;a<x+w/2;a+=3)this.box(1.4,.014,.09,a,-.122,z,'paper',this.cityGroup)}else for(let a=z-d/2+1;a<z+d/2;a+=3)this.box(.09,.014,1.4,x,-.122,a,'paper',this.cityGroup)};
- this.neighborhood=neighborhoodLayout();this.shops=[];
- for(const r of this.neighborhood.streets){this.box(r.w+1.3,.12,r.d+1.3,r.x,-.17,r.z,'sidewalk',this.cityGroup);road(r.x,r.z,r.w,r.d)}
- for(const plot of this.neighborhood.plots){if(plot.client!==undefined){const g=this.buildShop(plot.x,plot.z,plot.client);g.rotation.y=plot.rotation+Math.PI;this.shops[plot.client]=g;}else if(!plot.facility){const b=this.buildApartment(plot.x,plot.z,plot.floors);const avenue=[-19,7.3,35].sort((a,b)=>Math.abs(a-plot.z)-Math.abs(b-plot.z))[0];b.rotation.y=avenue<plot.z?Math.PI:0}}
- for(const [x,z,name]of [[27,-14,'حي السوق'],[51,26,'حي النخيل'],[77,43,'حي التوسع'],[114,17,'حي المطاعم'],[112,65,'حي السلاسل'],[130,76,'حي الجامعة']]){this.cyl(.045,.065,2.7,x,1.2,z,'metal',this.cityGroup);this.label(name,3.1,.55,x,2.5,z,'#f0e5ce','#2c5c55',this.cityGroup)}
+ this.neighborhood=neighborhoodLayout();this.shops=[];const fixtureClear=(x,z,w=.4,d=.4)=>![...this.neighborhood.streets,...this.neighborhood.plots].some(r=>overlaps({x,z,w,d},r,.12));this.cityFixtureFootprints=[];
+ const surfaces=streetSurfaces(this.neighborhood.streets);this.cityGroup.add(surfaceMesh(surfaces.road,-.13,this.mats.asphalt),surfaceMesh(surfaces.walk,-.10,this.mats.sidewalk));
+ for(const r of this.neighborhood.streets){const horizontal=r.w>r.d;for(let n=-(horizontal?r.w:r.d)/2+2;n<(horizontal?r.w:r.d)/2-1;n+=3){const x=r.x+(horizontal?n:0),z=r.z+(horizontal?0:n);if(this.neighborhood.streets.some(q=>q!==r&&(q.w>q.d)!==horizontal&&Math.abs(x-q.x)<q.w/2+1&&Math.abs(z-q.z)<q.d/2+1))continue;this.box(horizontal?1.2:.08,.008,horizontal?.08:1.2,x,-.121,z,'paper',this.cityGroup)}}
+
+ for(const plot of this.neighborhood.plots){if(plot.client!==undefined){const g=this.buildShop(plot.x,plot.z,plot.client);g.rotation.y=plot.rotation+Math.PI;this.shops[plot.client]=g;}else if(!plot.facility){const b=this.buildLibraryApartment(plot.x,plot.z,plot.floors);const avenue=[-19,7.3,35].sort((a,b)=>Math.abs(a-plot.z)-Math.abs(b-plot.z))[0];b.rotation.y=plot.rotation??(avenue<plot.z?Math.PI:0)}}
+ for(const [x,z,name]of [[27,-14,'حي السوق'],[51,26,'حي النخيل'],[77,43,'حي التوسع'],[114,17,'حي المطاعم'],[112,65,'حي السلاسل'],[130,76,'حي الجامعة']]){if(!fixtureClear(x,z))continue;this.cityFixtureFootprints.push({x,z,w:.4,d:.4});this.cyl(.045,.065,2.7,x,1.2,z,'metal',this.cityGroup);this.label(name,3.1,.55,x,2.5,z,'#f0e5ce','#2c5c55',this.cityGroup)}
  // Loading bays are at the real route endpoints, not at invented map coordinates.
  for(const p of this.neighborhood.clients){for(const side of [-1,1])this.box(.045,.015,3,p.x+side*1.3,-.10,p.z,'paper',this.cityGroup);this.label('استلام',1.6,.6,p.x,-.08,p.z,'#eee1b6','#4c6461',this.cityGroup).rotation.x=-Math.PI/2}
- this.cityLights=[];for(const [x,z]of [[20,4],[20,17],[35,4],[50,4],[67,4],[83,4],[38,31],[61,31],[83,31],[100,4],[120,4],[142,4],[100,46],[124,46],[144,65]]){this.cyl(.055,.095,4,x,1.9,z,'metal',this.cityGroup);this.box(1.1,.08,.15,x+.45,3.88,z,'metal',this.cityGroup);this.box(.5,.06,.32,x+.8,3.84,z,'light',this.cityGroup);const l=new T.PointLight(0xffddb0,30,15,1.8);l.position.set(x+.8,3.7,z);l.userData.nightPower=30;this.scene.add(l);this.cityLights.push(l)}
+ this.buildLibraryInstances();this.buildStreetLife();
+ for(const [i,p] of this.neighborhood.furniture.entries()){const {x,z}=p;if(i%3){this.box(2.1,.15,.55,x,.4,z,'wood',this.cityGroup);this.box(2.1,.5,.1,x,.72,z+.25,'wood',this.cityGroup);for(const dx of [-.8,.8])this.box(.12,.5,.5,x+dx,.15,z,'metal',this.cityGroup);}else{this.box(1.2,.38,1.2,x,.06,z,'terracotta',this.cityGroup);this.cyl(.12,.18,2.2,x,1.2,z,'wood',this.cityGroup);this.sphere(.8,x,2.9,z,'teal',this.cityGroup);}}
+ for(const [x,z]of [[22,7.3],[96,7.3],[148,49],[148,76],[178,7.3]]){for(let a=-1.6;a<=1.6;a+=.65)this.box(.32,.018,3.8,x+a,-.10,z+4,'paper',this.cityGroup);if(!fixtureClear(x+3.6,z+3.6))continue;this.cityFixtureFootprints.push({x:x+3.6,z:z+3.6,w:.4,d:.4});this.cyl(.06,.08,2.8,x+3.6,1.3,z+3.6,'metal',this.cityGroup);this.box(.35,.75,.28,x+3.6,2.65,z+3.6,'dark',this.cityGroup);this.sphere(.1,x+3.6,2.85,z+3.77,'red',this.cityGroup);}
+ this.campaignMonument=new T.Group();this.scene.add(this.campaignMonument);this.label('وكالة سعيد · الاسم رجع',5,.65,-8,3.15,-7.75,'#ffdfa3','#294f4a',this.campaignMonument);this.campaignMonument.visible=false;
+ this.cityLights=[];for(const [x,z]of [[20,4],[20,17],[35,4],[50,4],[67,4],[83,4],[38,31],[61,31],[83,31],[100,4],[120,4],[142,4],[100,46],[124,46],[144,65],[176,10],[176,48],[178,90],[212,12],[212,74]]){if(!fixtureClear(x+.45,z,1.2,.4))continue;this.cityFixtureFootprints.push({x:x+.45,z,w:1.2,d:.4});this.cyl(.055,.095,4,x,1.9,z,'metal',this.cityGroup);this.box(1.1,.08,.15,x+.45,3.88,z,'metal',this.cityGroup);this.box(.5,.06,.32,x+.8,3.84,z,'light',this.cityGroup);const l=new T.PointLight(0xffddb0,30,15,1.8);l.position.set(x+.8,3.7,z);l.userData.nightPower=30;this.scene.add(l);this.cityLights.push(l)}
  for(const [x,z]of [[-7,-2],[5,-3],[3,7]]){const l=new T.PointLight(0xffe5ba,65,24,1.5);l.position.set(x,4.1,z);l.userData.nightPower=65;this.scene.add(l);this.box(1.8,.08,.3,x,4.25,z,'light')}
  this.repActors=new Map();this.repActorGroup=new T.Group();this.scene.add(this.repActorGroup);this.cityTrucksGroup=new T.Group();this.scene.add(this.cityTrucksGroup);
  this.buildingSigns=[];this.cityGroup.traverse(o=>{if(o.userData.client!==undefined)this.buildingSigns.push(o)});this.cityBatchStats=batchScenery(this.cityGroup);
@@ -37,6 +44,7 @@ export const city={
  const customer=this.human('shirt',(i+2)%9);customer.position.set(-1.3,0,-2.8);customer.rotation.y=Math.PI;customer.userData.action='customer:'+i;g.add(customer);g.userData.customer=customer;g.userData.renewal=new T.Group();g.add(g.userData.renewal);return g;
  },
  updateCity(dt,s){
+ this.updateStreetLife(dt,s);
  for(const [id,actor]of this.repActors)if(!s.repRoutes.some(r=>r.index===id)){this.repActorGroup.remove(actor);this.clearGroup(actor);this.repActors.delete(id)}for(const r of s.repRoutes){let actor=this.repActors.get(r.index);if(!actor){actor=this.human('teal',5+r.index);this.repActorGroup.add(actor);this.repActors.set(r.index,actor)}const f=r.phase==='visit'?1:Math.min(1,r.elapsed/r.duration),p=cityPoint({x:r.from.x+(r.to.x-r.from.x)*f,y:r.from.y+(r.to.y-r.from.y)*f});actor.position.set(p.x,0,p.z);actor.rotation.y=Math.atan2(r.to.x-r.from.x,r.to.y-r.from.y);const walk=r.phase==='visit'?0:Math.sin(this.elapsed*10)*.5;actor.userData.legs[0].rotation.x=walk;actor.userData.legs[1].rotation.x=-walk;actor.userData.arms[0].rotation.x=-walk;actor.userData.arms[1].rotation.x=walk}
  const trips=[s.trip,...(s.fleetTrips||[])].filter(Boolean),ids=new Set(trips.map(t=>t.vehicleId));
  for(const [id,g]of this.cityTrucks)if(!ids.has(id)){this.cityTrucksGroup.remove(g);this.clearGroup(g);this.cityTrucks.delete(id)}

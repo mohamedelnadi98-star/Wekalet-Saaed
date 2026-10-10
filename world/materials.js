@@ -1,3 +1,4 @@
+import {streetTexture} from './streets.js';
 import * as T from '../vendor/three.module.js';
 import * as Agency from '../economy.js';
 
@@ -6,5 +7,5 @@ tex(type,base){const c=document.createElement('canvas');c.width=c.height=256;con
 
 mat(name,color,rough=.8,metal=0,map){const m=new T.MeshStandardMaterial({color,roughness:rough,metalness:metal,...(map?{map}:{})});m.name=name;this.mats[name]=m;return m},
 
-buildMaterials(){this.mat('floor',0xffffff,.94,0,this.tex('tile','#aaa594'));this.mat('concrete',0xffffff,.97,0,this.tex('stone','#b6b39c'));this.mat('wall',0xffffff,.91,0,this.tex('brick','#bfc0a7'));this.mat('teal',0x275a5b,.66,.12);this.mat('dark',0x183a40,.68,.1);this.mat('wood',0xffffff,.73,0,this.tex('wood','#845936'));this.mat('edge',0xcdb88e,.67);this.mat('metal',0x344b50,.4,.62);this.mat('brass',0xc49c56,.4,.68);this.mat('box',0xffffff,.94,0,this.tex('paper','#b6925f'));this.mat('paper',0xe8dfc6,.9);this.mat('rubber',0x252d2c,.96);this.mat('skin',0xbf916b,.8);this.mat('shirt',0xefe5cc,.86);this.mat('pants',0x283a46,.9);this.mat('red',0xac543c,.7);this.mat('leaf',0x496d53,.9);this.mat('water',0x527e80,.25,.5);this.mat('glass',0x9bc6c5,.2,.25);this.mats.glass.transparent=true;this.mats.glass.opacity=.65;this.mat('light',0xffe4a1,.4);this.mats.light.emissive=new T.Color(0xfbd690);this.mats.light.emissiveIntensity=.6;}
+buildMaterials(){this.mat('floor',0xffffff,.94,0,streetTexture('floor'));this.mat('concrete',0xffffff,.97,0,this.tex('stone','#b6b39c'));this.mat('wall',0xffffff,.91,0,this.tex('brick','#bfc0a7'));this.mat('teal',0x275a5b,.66,.12);this.mat('dark',0x183a40,.68,.1);this.mat('wood',0xffffff,.73,0,this.tex('wood','#845936'));this.mat('edge',0xcdb88e,.67);this.mat('metal',0x344b50,.4,.62);this.mat('brass',0xc49c56,.4,.68);this.mat('box',0xffffff,.94,0,this.tex('paper','#b6925f'));this.mat('paper',0xe8dfc6,.9);this.mat('rubber',0x252d2c,.96);this.mat('skin',0xbf916b,.8);this.mat('shirt',0xefe5cc,.86);this.mat('pants',0x283a46,.9);this.mat('red',0xac543c,.7);this.mat('leaf',0x496d53,.9);this.mat('water',0x527e80,.25,.5);this.mat('glass',0x9bc6c5,.2,.25);this.mats.glass.transparent=true;this.mats.glass.opacity=.65;this.mat('light',0xffe4a1,.4);this.mats.light.emissive=new T.Color(0xfbd690);this.mats.light.emissiveIntensity=.6;}
 };

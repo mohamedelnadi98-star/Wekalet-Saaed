@@ -26,9 +26,13 @@ import(moduleURL('game.js')).catch(e=>{const el=document.getElementById('loading
 """
 if owner:boot=boot.replace("import(moduleURL('game.js'))","import(moduleURL('private-tools/owner.js')).then(()=>import(moduleURL('game.js')))")
 html=(root/'index.html').read_text().replace('<link rel="stylesheet" href="style.css">','<style>'+(root/'style.css').read_text()+'</style>')
+html=html.replace('./assets/fonts/Cairo.ttf','data:font/ttf;base64,'+base64.b64encode((root/'assets/fonts/Cairo.ttf').read_bytes()).decode())
 html=re.sub(r'<link rel="manifest"[^>]*>|<link rel="icon"[^>]*>','',html)
 html=html.replace('<script type="module" src="game.js"></script>','<script type="module">'+boot.replace('</script','<\\/script')+'</script>')
 output=root/'private-tools/Play-Owner.html' if owner else root/'Play-Offline.html'
 if owner:html=html.replace('<title>','<title>نسخة المالك — ').replace('وكالة سعيد · النسخة','نسخة اختبار خاصة · النسخة')
-output.write_text(html)
+temporary=output.with_name(output.name+'.tmp.build')
+temporary.write_text(html)
+assert temporary.stat().st_size==len(html.encode()) and '<script type="module">' in html
+temporary.replace(output)
 print(f'Portable build: {len(sources)} modules, {len(html.encode()):,} bytes')

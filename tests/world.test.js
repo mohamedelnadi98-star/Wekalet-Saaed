@@ -57,3 +57,41 @@ for(let i=0;i<25;i++){campus.s.stock=[{pid:'bread',qty:10+i,unit:90,expires:7}];
 let points=0;world.scene.traverse(o=>{if(o.isPointLight)points++});assert.equal(world.lamps.length,4);assert(points<=5);assert(world.lightSites.length>points);
 const temp=new (await import('../vendor/three.module.js')).Group(),nested=new (await import('../vendor/three.module.js')).Group();temp.add(nested);const discarded=world.human('shirt',1);nested.add(discarded);assert(world.adults.has(discarded));world.clearGroup(temp);assert(!world.adults.has(discarded));
 console.log('PASS: 25 stock updates retain fleet/actors, nested actor disposal releases registry, four environment point lights plus the separate story light');
+
+for(const p of world.cityFixtureFootprints){for(const r of [...world.neighborhood.streets,...world.neighborhood.plots])assert(!(Math.abs(p.x-r.x)<(p.w+r.w)/2&&Math.abs(p.z-r.z)<(p.d+r.d)/2),'street furniture clips road/building');}
+const people=[...world.adults],bodies=people.map(g=>g.getObjectByName('Anatomical body')).filter(Boolean);assert(bodies.length>1);assert.equal(new Set(bodies.map(m=>m.geometry)).size,1,'characters must share immutable geometry');
+console.log('PASS: v17 fixture footprints and shared full-character geometry');
+
+// Harbor assets must stay inside their intended footprints and out of routes.
+const {HARBOR}=await import('../world/harbor-layout.js');
+const {INDUSTRIAL_MESHES}=await import('../assets/harbor/industrial.js');
+const {SHIP_MESHES}=await import('../assets/harbor/ships.js');
+for(const data of Object.values({...INDUSTRIAL_MESHES,...SHIP_MESHES})){
+ assert(data.p.length===data.n.length&&data.p.length===data.c.length);
+ assert(data.p.every(Number.isFinite)&&data.n.every(Number.isFinite));
+ assert(data.i.every(i=>Number.isInteger(i)&&i>=0&&i<data.p.length/3));
+ assert(data.size.every(n=>n>0));
+}
+assert.equal(HARBOR.water.z+HARBOR.water.d/2,HARBOR.shoreZ);
+assert(world.neighborhood.plots.every(p=>p.z-p.d/2>HARBOR.shoreZ));
+assert(world.mooredShips.every(m=>m.position.z+HARBOR.ships[0].length*.37/2<HARBOR.shoreZ));
+for(const reserve of HARBOR.reserves){assert(reserve.x+reserve.w/2<-60);assert(reserve.z-reserve.d/2>=HARBOR.shoreZ);}
+assert(world.harborBatchStats.after<world.harborBatchStats.before/4);
+assert(world.harborGeometries.size<=12);
+world.setView('harbor');world.updateHarbor(.1);assert(world.agencyRoof.visible);assert(world.garageRoof.visible);
+world.setView('office');world.radius=23;world.updateHarbor(.1);assert(!world.agencyRoof.visible);assert(!world.garageRoof.visible);
+assert.equal(world.mats.roofSteel.transparent,false);assert.equal(world.mats.roofSteel.opacity,1);
+assert.doesNotThrow(()=>world.cyl(.1,.1,1,0,0,0,'concrete'));assert.doesNotThrow(()=>world.sphere(.1,0,0,0,'concrete'));
+const geometryBefore=world.harborGeometries.get('building-i');let disposed=false;geometryBefore.addEventListener('dispose',()=>disposed=true);campus.s.warehouses.bakery.capacity=320;world.updateEnvironment(.1,campus.s);assert(!disposed,'shared library model was disposed during a warehouse upgrade');
+const mesh=world.siteUpgrades.children.find(g=>g.userData.action==='storage:bakery').children.find(m=>m.userData.libraryModel);assert.equal(mesh.geometry,geometryBefore);
+console.log('PASS: harbor shoreline, reserve parcels, library meshes, cutaway roofs, shared geometry lifetime and ground primitives');
+world.handsLoading=true;world.state.trip=null;world.updateHands();assert(world.handSlots.visible);assert.equal(world.handSlotMeshes.length,6);assert(world.truck.userData.boxPanels.every(p=>!p.visible));world.handsLoading=false;world.updateHands();assert(!world.handSlots.visible);assert(world.truck.userData.boxPanels.every(p=>p.visible));console.log('PASS: six clickable loading cells and closed truck restored after manual loading');
+sim=new Agency.Simulation();sim.beginCampaign();sim.s.delivered=25;sim.loopState();for(const id of ['team','tools','brands','fleet','people','dispatch','routes','signature'])sim.grantWorkshop(id);sim.s.carry={order:sim.s.orders[0].id,pid:'bread',qty:20,cost:100,expires:5,manual:true};world.path=[];world.pending=null;world.player.position.set(4,0,-4);world.update(.016,sim.s);assert(world.workCart.visible);assert(!world.carryMesh.visible);assert(world.cartForks.visible);const cart=world.workCart,sheet=world.truckSheet,place=world.workplace;let meshes=0;world.scene.traverse(n=>{if(n.isMesh)meshes++});for(let i=0;i<120;i++)world.update(.016,sim.s);let after=0;world.scene.traverse(n=>{if(n.isMesh)after++});assert.equal(after,meshes);assert.equal(world.workCart,cart);assert.equal(world.truckSheet,sheet);assert.equal(world.workplace,place);for(const o of world.interactables){world.player.position.set(-6,0,4);assert(world.findPath(o.approach.x,o.approach.z).length,'v20 upgrade blocks '+o.id);}sim.s.carry=null;world.update(.016,sim.s);assert(!world.workCart.visible);console.log('PASS: v20 carts, bounded geometry and reachable destinations');
+
+// v21: repeated jobs keep one payload and reset the operator pose; fleet changes cannot teleport him.
+const ops=new Agency.Simulation();ops.s.staff.worker=1;ops.s.development.owned={jack:true,forklift:true};ops.s.development.stage=3;world.update(.1,ops.s);
+for(const equipment of ['manual','jack','forklift']){const actor=world.workerActor;ops.s.workerJob={id:81,vehicle:0,batch:{order:'receive81',pid:'bread',qty:10},from:{x:9,z:4.3},to:{x:5,z:-4.8},duration:8,elapsed:0,equipment};world.update(.1,ops.s);const box=world.workerBox;
+for(let i=1;i<80;i++){ops.s.workerJob.elapsed=i/10;world.update(.1,ops.s);assert.equal(world.workerBox,box);assert(Number.isFinite(actor.position.x));if(equipment==='forklift'){assert(actor.userData.seated);assert.equal(actor.position.y,.02);assert.equal(actor.userData.legs[0].userData.knee.rotation.x,1.4);}}
+const position=actor.position.clone();ops.s.staff.driver=2;world.sync(ops.s);assert.equal(world.workerActor,actor);assert(actor.position.distanceTo(position)<.001);ops.s.workerJob=null;world.update(.1,ops.s);assert.equal(actor.position.y,0);assert.equal(actor.userData.seated,false);assert(!box.visible);for(const leg of actor.userData.legs){assert.equal(leg.rotation.x,0);assert.equal(leg.userData.knee.rotation.x,0);}assert.equal(world.workerBox,box);}
+ops.s.carry={order:81,pid:'bread',qty:10,cost:100,expires:8,workerStaged:true};world.update(.1,ops.s);assert(!world.carryMesh.visible);assert(world.workerBox.visible);ops.s.carry=null;ops.s.development.loadMotion={vehicle:1,pid:'bread',qty:10,start:ops.s.elapsed,x:14,z:-40};world.update(.1,ops.s);assert(Math.abs(world.loadingGroup.position.x+10)<.01);assert(world.loadingGroup.position.z>14&&world.loadingGroup.position.z<16);ops.s.development.loadMotion=null;world.update(.1,ops.s);assert(!world.workerBox.visible);world.goTo('phone');world.keys.KeyD=true;world.update(.1,ops.s);world.keys.KeyD=false;assert(!world.destinationRing.visible);
+console.log('PASS: worker lifecycle, one payload, fleet stability, bay-local loading and cancelled target markers');

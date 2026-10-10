@@ -159,7 +159,7 @@ wrap('resolveTrip',function(old,choice){const t=this.s.trip,e=this.s.tripEvent,c
  });
  wrap('tick',function(old,dt){const elapsed=this.s.elapsed;old.call(this,dt);const advanced=this.s.elapsed-elapsed;if(advanced<=0)return;this.tickReps(advanced);
  const reception=this.s.workerJob;if(reception){reception.elapsed+=advanced;if(reception.elapsed>=reception.duration){this.s.workerJob=null;receiveNow.call(this,reception.id);this.change()}}
- const job=this.s.pickingJob;if(job){job.elapsed+=advanced;if(job.elapsed>=job.duration){this.s.carry=job.batch;this.s.pickingJob=null;this.notice('العامل جهّز الكراتين عند التحميل. حمّلها في العربية.');if(this.s.auto&&job.vehicle===this.s.selectedVehicle&&!this.s.trip){if(this.load())this.dispatch()}this.change()}}
+ const job=this.s.pickingJob;if(job){job.elapsed+=advanced;if(job.elapsed>=job.duration){this.s.carry={...job.batch,workerStaged:true};this.s.pickingJob=null;this.notice('العامل جهّز الكراتين عند التحميل. حمّلها في العربية.');if(this.s.auto&&job.vehicle===this.s.selectedVehicle&&!this.s.trip){if(this.load())this.dispatch()}this.change()}}
  });
  // Validate every extra vehicle with the original validator; never trust hidden trips.
  const baseValidate=Simulation.validate;

@@ -1,3 +1,8 @@
+import {installTravelSpeed} from './simulation/travel-speed.js';
+import {installLoop} from './simulation/loop.js';
+import {installHands} from './simulation/hands.js';
+import {journeyDefaults,installJourney} from './simulation/journey.js';
+import {campaignDefaults,installCampaign} from './simulation/campaign.js';
 import {businessDefaults,installBusiness} from './simulation/business.js';
 import {CITY_CLIENTS,CITY_WIDTH,CITY_HEIGHT} from './city-catalog.js';
 import {installStory,storyDefaults} from './simulation/story.js';
@@ -60,7 +65,7 @@ const MISSIONS=[
  {title:'دخول سوق المجمدات',hint:'٦٠ طلبية و٦ دورات ناجحة وسمعة ٧٥ ومندوبان؛ بعدها جهّز مخزن تجميد وعربية تجميد لعقد قطوف.',target:'desk'},
  {title:'إدارة شبكة التوكيلات',hint:'حقق ١٠٠ ألف ج.م صافي ربح و١٢ دورة مسحوبات ناجحة مع التوكيلات الأربعة.',target:'desk'}
 ];
-const fresh=()=>({...businessDefaults(),...storyDefaults(),...developmentDefaults(),...logisticsDefaults(),...featureDefaults(),...expansionDefaults(),version:4,name:'التاجر',money:25000,debt:8000,day:1,time:0,elapsed:0,signed:false,inventoried:false,repaired:false,mission:0,chapter:1,completed:false,firstReward:false,rep:50,capacity:160,cooling:false,freezer:false,officeLevel:0,truckCount:1,truckCondition:100,vehicles:[{id:1,kind:'normal',condition:100,capacity:60}],selectedVehicle:1,staff:{driver:0,worker:0,rep:0,accountant:0},commissionDue:0,commissionPaid:0,autoTick:0,auto:false,contracts:{bakery:false,dairy:false,pantry:false,frozen:false},warehouses:{bakery:{owned:false,capacity:160},dairy:{owned:false,capacity:160},pantry:{owned:false,capacity:240},frozen:{owned:false,capacity:240}},cycles:{},successfulCycles:0,cycleHistory:[],purchases:{bakery:0,dairy:0,pantry:0,frozen:0},netPurchases:{bakery:0,dairy:0,pantry:0,frozen:0},stock:[],incoming:[],orders:[],trip:null,tripHistory:[],cargo:[],carry:null,invoices:[],ledger:[],clients:CLIENTS.map(c=>({...c,served:0,outstanding:0})),regions:['دمياط'],served:[],revenue:0,cogs:0,expenses:0,delivered:0,seq:1,orderTick:0,event:null,nextEvent:3,lastStatement:null,notices:[],settings:{sound:true,quality:'high'},position:{x:-6,z:4}});
+const fresh=()=>({...journeyDefaults(),...campaignDefaults(),...businessDefaults(),...storyDefaults(),...developmentDefaults(),...logisticsDefaults(),...featureDefaults(),...expansionDefaults(),version:4,name:'التاجر',money:25000,debt:8000,day:1,time:0,elapsed:0,signed:false,inventoried:false,repaired:false,mission:0,chapter:1,completed:false,firstReward:false,rep:50,capacity:160,cooling:false,freezer:false,officeLevel:0,truckCount:1,truckCondition:100,vehicles:[{id:1,kind:'normal',condition:100,capacity:60}],selectedVehicle:1,staff:{driver:0,worker:0,rep:0,accountant:0},commissionDue:0,commissionPaid:0,autoTick:0,auto:false,contracts:{bakery:false,dairy:false,pantry:false,frozen:false},warehouses:{bakery:{owned:false,capacity:160},dairy:{owned:false,capacity:160},pantry:{owned:false,capacity:240},frozen:{owned:false,capacity:240}},cycles:{},successfulCycles:0,cycleHistory:[],purchases:{bakery:0,dairy:0,pantry:0,frozen:0},netPurchases:{bakery:0,dairy:0,pantry:0,frozen:0},stock:[],incoming:[],orders:[],trip:null,tripHistory:[],cargo:[],carry:null,invoices:[],ledger:[],clients:CLIENTS.map(c=>({...c,served:0,outstanding:0})),regions:['دمياط'],served:[],revenue:0,cogs:0,expenses:0,delivered:0,seq:1,orderTick:0,event:null,nextEvent:3,lastStatement:null,notices:[],settings:{sound:true,quality:'high',travelSpeed:1},position:{x:-6,z:4}});
 class Simulation{
  constructor(state){this.s=state?Simulation.validate(state):fresh();this.onChange=()=>{};this.onNotice=()=>{};this.rng=Math.random;this.advance();this.unlockDevelopment();this.assignFleetBrands();}
  get stockTotal(){return this.s.stock.reduce((a,b)=>a+b.qty,0)}
@@ -82,7 +87,7 @@ class Simulation{
  if(m===6&&(s.incoming.length||this.stockTotal||s.carry||s.pickingJob||s.cargo.length||this.otherLoads().length||s.trip||s.fleetTrips.length||s.delivered))m=7;
  if(m===7&&(this.stockTotal||s.carry||s.pickingJob||s.cargo.length||this.otherLoads().length||s.trip||s.fleetTrips.length||s.delivered))m=8;
  if(m===8&&(s.cargo.length||s.trip||s.fleetTrips.length||s.delivered))m=9;if(m===9&&(s.trip||s.fleetTrips.length||s.delivered))m=10;
- if(m===10&&s.delivered){m=11;if(!s.firstReward){s.firstReward=true;s.money+=3000;this.log('دعم رأس مال التشغيل لأول توكيل',3000);this.notice('أول طلبية اتحصّلت! عم سعيد أضاف ٣٬٠٠٠ ج.م لرأس مال التشغيل.');}}
+ if(m===10&&s.delivered){m=11;if(!s.firstReward){s.firstReward=true;s.money+=3000;this.log('دعم رأس مال التشغيل لأول توكيل',3000);this.notice('أول طلبية اتحصّلت! اتفتح احتياطي ٣٬٠٠٠ ج.م لرأس مال التشغيل.');}}
  if(m===11&&s.contracts.dairy)m=12;if(m===12&&s.staff.rep)m=13;if(m===13&&s.contracts.pantry)m=14;if(m===14&&s.clients.some(c=>c.area==='الدقهلية'&&c.served))m=15;if(m===15&&s.contracts.frozen)m=16;
  s.mission=m;s.chapter=m<11?1:m<13?2:m<15?3:4;
  if(m===16&&!s.completed&&this.profit>=100000&&s.successfulCycles>=12){s.completed=true;this.notice('وكالة سعيد حققت أهداف شبكة التوكيلات. تقدر تكمل إدارة الدورات والتوسع بحرية.');}
@@ -223,4 +228,9 @@ installLogistics(Simulation,{PRODUCTS,COMPANIES,MAP,MONEY,DAY_SECONDS});
 installDevelopment(Simulation,{PRODUCTS});
 installStory(Simulation);
 installBusiness(Simulation,{PRODUCTS,COMPANIES,MAP,DAY_SECONDS,MONEY});
+installCampaign(Simulation,{PRODUCTS,MONEY});
+installJourney(Simulation,{PRODUCTS,MONEY});
+installHands(Simulation,{PRODUCTS,MONEY});
+installLoop(Simulation,{PRODUCTS,MONEY});
+installTravelSpeed(Simulation,{PRODUCTS});
 export {Simulation,PRODUCTS,COMPANIES,MISSIONS,VEHICLES,ROLES,MAP,routePosition,DAY_SECONDS,ORDER_SECONDS,MONEY,fresh};
